@@ -89,6 +89,7 @@ export const kycAPI = {
 
   // Admin
   getPendingKYC: () => api.get("/users/kyc-pending/all"),
+  getRejectedKYC: () => api.get("/users/kyc-rejected/all"),
   approve: (userId) => api.put(`/users/kyc-approve/${userId}`),
   reject: (userId, data) => api.put(`/users/kyc-reject/${userId}`, data),
 };

@@ -48,6 +48,7 @@ import BulkPayoutManagement from '../pages/admin/BulkPayoutManagement';
 import WithdrawManagement from '../pages/admin/WithdrawManagement';
 
 import KYCManagement from '../pages/admin/KYCManagement';
+import RejectedKYC from '../pages/admin/RejectedKYC';
 import AdminSupport from '../pages/admin/Support';
 import PaymentGatewaySettings from '../pages/admin/PaymentGatewaySettings';
 import AdminQRManagement from '../pages/admin/QRManagement';
@@ -159,6 +160,7 @@ const AppRoutes = () => {
         <Route path="users/:id" element={<UserDetail />} />
         <Route path="blocked-users" element={<BlockedUsers />} />
         <Route path="kyc-management" element={<KYCManagement />} />
+        <Route path="kyc-rejected" element={<RejectedKYC />} />
         <Route path="support" element={<AdminSupport />} />
         <Route path="payout" element={<AdminPayoutManagement />} />
         <Route path="bulk-payouts" element={<BulkPayoutManagement />} />

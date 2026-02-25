@@ -19,7 +19,8 @@ import {
   Ban,
   KeyRound,
   Send,
-  MessageSquare
+  MessageSquare,
+  ShieldX
 } from 'lucide-react';
 import AdminSection from './AdminSection';
 
@@ -58,6 +59,7 @@ const AdminSidebar = () => {
       { icon: Users, label: 'All Users', path: '/admin/users' },
       { icon: Ban, label: 'Blocked Users', path: '/admin/blocked-users' },
       { icon: ShieldCheck, label: 'KYC Management', path: '/admin/kyc-management' },
+      { icon: ShieldX, label: 'Rejected KYC', path: '/admin/kyc-rejected' },
       { icon: MessageCircle, label: 'Support Chats', path: '/admin/support' },
       { icon: MessageSquare, label: 'Enquiries', path: '/admin/enquiries' }
     ],

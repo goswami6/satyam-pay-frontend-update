@@ -1,32 +1,29 @@
 import React, { useState, useEffect } from "react";
 import {
-  CheckCircle,
   XCircle,
   Eye,
-  Clock,
   User,
   CreditCard,
   Building2,
-  FileCheck,
-  AlertTriangle,
   Search,
   RefreshCw,
   X,
-  Shield,
+  ShieldX,
   Calendar,
   Phone,
   Mail,
   ChevronLeft,
   ChevronRight,
+  AlertTriangle,
+  MessageSquare,
+  CheckCircle,
 } from "lucide-react";
 import { kycAPI, getImageUrl } from "../../utils/api";
 
-const KYCManagement = () => {
+const RejectedKYC = () => {
   const [users, setUsers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [selectedUser, setSelectedUser] = useState(null);
-  const [rejectReason, setRejectReason] = useState("");
-  const [showRejectModal, setShowRejectModal] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
 
   // Pagination state
@@ -34,22 +31,23 @@ const KYCManagement = () => {
   const [itemsPerPage, setItemsPerPage] = useState(15);
 
   useEffect(() => {
-    fetchPendingKYC();
+    fetchRejectedKYC();
   }, []);
 
-  const fetchPendingKYC = async () => {
+  const fetchRejectedKYC = async () => {
     try {
       setLoading(true);
-      const response = await kycAPI.getPendingKYC();
+      const response = await kycAPI.getRejectedKYC();
       setUsers(response.data);
     } catch (error) {
-      console.error("Error fetching KYC:", error);
+      console.error("Error fetching rejected KYC:", error);
     } finally {
       setLoading(false);
     }
   };
 
-  const handleApprove = async (userId) => {
+  const handleReApprove = async (userId) => {
+    if (!confirm("Are you sure you want to approve this KYC?")) return;
     try {
       await kycAPI.approve(userId);
       setUsers(users.filter((u) => u._id !== userId));
@@ -60,31 +58,13 @@ const KYCManagement = () => {
     }
   };
 
-  const handleReject = async () => {
-    if (!selectedUser) return;
-    try {
-      await kycAPI.reject(selectedUser._id, { reason: rejectReason });
-      setUsers(users.filter((u) => u._id !== selectedUser._id));
-      setSelectedUser(null);
-      setShowRejectModal(false);
-      setRejectReason("");
-      alert("KYC Rejected");
-    } catch (error) {
-      alert("Error rejecting KYC");
-    }
-  };
-
-  const openRejectModal = (user) => {
-    setSelectedUser(user);
-    setShowRejectModal(true);
-  };
-
   // Filter users based on search
   const filteredUsers = users.filter(
     (user) =>
       user.fullName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
       user.email?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      user.phone?.includes(searchTerm)
+      user.phone?.includes(searchTerm) ||
+      user.kyc?.rejectionReason?.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
   // Pagination logic
@@ -101,8 +81,7 @@ const KYCManagement = () => {
   // Generate page numbers
   const getPageNumbers = () => {
     const pages = [];
-    const maxVisiblePages = 5;
-    if (totalPages <= maxVisiblePages) {
+    if (totalPages <= 5) {
       for (let i = 1; i <= totalPages; i++) pages.push(i);
     } else {
       if (currentPage <= 3) {
@@ -128,28 +107,28 @@ const KYCManagement = () => {
     return (
       <div className="flex items-center justify-center h-96">
         <div className="text-center">
-          <div className="w-16 h-16 border-4 border-indigo-600 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
-          <p className="text-gray-500 font-medium">Loading KYC applications...</p>
+          <div className="w-16 h-16 border-4 border-rose-500 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
+          <p className="text-gray-500 font-medium">Loading rejected KYC applications...</p>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="space-y-6 animate-in fade-in duration-500">
+    <div className="space-y-6">
       {/* Header */}
       <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
         <div>
           <div className="flex items-center gap-3 mb-1">
-            <div className="w-10 h-10 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-xl flex items-center justify-center shadow-lg shadow-indigo-200">
-              <Shield className="w-5 h-5 text-white" />
+            <div className="w-10 h-10 bg-gradient-to-br from-rose-500 to-red-600 rounded-xl flex items-center justify-center shadow-lg shadow-rose-200">
+              <XCircle className="w-5 h-5 text-white" />
             </div>
-            <h1 className="text-2xl font-black text-gray-900">KYC Management</h1>
+            <h1 className="text-2xl font-black text-gray-900">Rejected KYC</h1>
           </div>
-          <p className="text-gray-500 ml-13">Review and verify user identity documents</p>
+          <p className="text-gray-500 ml-13">View all rejected KYC applications with rejection reasons</p>
         </div>
         <button
-          onClick={fetchPendingKYC}
+          onClick={fetchRejectedKYC}
           className="inline-flex items-center gap-2 px-4 py-2.5 bg-white border border-gray-200 text-gray-700 rounded-xl font-semibold text-sm hover:bg-gray-50 transition-all shadow-sm"
         >
           <RefreshCw className={`w-4 h-4 ${loading ? "animate-spin" : ""}`} />
@@ -157,38 +136,27 @@ const KYCManagement = () => {
         </button>
       </div>
 
-      {/* Stats Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <div className="bg-gradient-to-br from-amber-50 to-orange-50 border border-amber-200/50 rounded-2xl p-5 shadow-sm">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-xs font-bold text-amber-600 uppercase tracking-wider mb-1">Pending Review</p>
-              <p className="text-3xl font-black text-amber-700">{users.length}</p>
-            </div>
-            <div className="w-14 h-14 bg-amber-100 rounded-2xl flex items-center justify-center">
-              <Clock className="w-7 h-7 text-amber-600" />
-            </div>
-          </div>
-        </div>
-        <div className="bg-gradient-to-br from-emerald-50 to-green-50 border border-emerald-200/50 rounded-2xl p-5 shadow-sm">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-xs font-bold text-emerald-600 uppercase tracking-wider mb-1">Approved Today</p>
-              <p className="text-3xl font-black text-emerald-700">--</p>
-            </div>
-            <div className="w-14 h-14 bg-emerald-100 rounded-2xl flex items-center justify-center">
-              <CheckCircle className="w-7 h-7 text-emerald-600" />
-            </div>
-          </div>
-        </div>
+      {/* Stats */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <div className="bg-gradient-to-br from-rose-50 to-red-50 border border-rose-200/50 rounded-2xl p-5 shadow-sm">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-xs font-bold text-rose-600 uppercase tracking-wider mb-1">Rejected Today</p>
-              <p className="text-3xl font-black text-rose-700">--</p>
+              <p className="text-xs font-bold text-rose-600 uppercase tracking-wider mb-1">Total Rejected</p>
+              <p className="text-3xl font-black text-rose-700">{users.length}</p>
             </div>
             <div className="w-14 h-14 bg-rose-100 rounded-2xl flex items-center justify-center">
               <XCircle className="w-7 h-7 text-rose-600" />
+            </div>
+          </div>
+        </div>
+        <div className="bg-gradient-to-br from-amber-50 to-orange-50 border border-amber-200/50 rounded-2xl p-5 shadow-sm">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-xs font-bold text-amber-600 uppercase tracking-wider mb-1">Awaiting Resubmission</p>
+              <p className="text-3xl font-black text-amber-700">{users.length}</p>
+            </div>
+            <div className="w-14 h-14 bg-amber-100 rounded-2xl flex items-center justify-center">
+              <AlertTriangle className="w-7 h-7 text-amber-600" />
             </div>
           </div>
         </div>
@@ -200,10 +168,10 @@ const KYCManagement = () => {
           <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
           <input
             type="text"
-            placeholder="Search by name, email, or phone..."
+            placeholder="Search by name, email, phone, or rejection reason..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
-            className="w-full pl-12 pr-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all"
+            className="w-full pl-12 pr-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-rose-500 focus:border-transparent transition-all"
           />
         </div>
       </div>
@@ -211,16 +179,16 @@ const KYCManagement = () => {
       {/* Users List */}
       {filteredUsers.length === 0 ? (
         <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-12 text-center">
-          <div className="w-20 h-20 bg-emerald-100 rounded-3xl flex items-center justify-center mx-auto mb-5">
-            <FileCheck className="w-10 h-10 text-emerald-600" />
+          <div className="w-20 h-20 bg-gray-100 rounded-3xl flex items-center justify-center mx-auto mb-5">
+            <XCircle className="w-10 h-10 text-gray-400" />
           </div>
           <h3 className="text-xl font-bold text-gray-900 mb-2">
-            {searchTerm ? "No results found" : "All caught up!"}
+            {searchTerm ? "No results found" : "No Rejected KYC"}
           </h3>
           <p className="text-gray-500 max-w-md mx-auto">
             {searchTerm
               ? "Try adjusting your search terms"
-              : "There are no pending KYC applications to review at this time."}
+              : "There are no rejected KYC applications at this time."}
           </p>
         </div>
       ) : (
@@ -230,13 +198,13 @@ const KYCManagement = () => {
               <thead>
                 <tr className="bg-gray-50/80 border-b border-gray-100">
                   <th className="px-6 py-4 text-left text-[11px] font-bold text-gray-500 uppercase tracking-wider">
-                    Applicant
+                    User
                   </th>
                   <th className="px-6 py-4 text-left text-[11px] font-bold text-gray-500 uppercase tracking-wider">
                     Contact Info
                   </th>
                   <th className="px-6 py-4 text-left text-[11px] font-bold text-gray-500 uppercase tracking-wider">
-                    Submitted On
+                    Rejection Reason
                   </th>
                   <th className="px-6 py-4 text-left text-[11px] font-bold text-gray-500 uppercase tracking-wider">
                     Status
@@ -248,10 +216,10 @@ const KYCManagement = () => {
               </thead>
               <tbody className="divide-y divide-gray-50">
                 {paginatedUsers.map((user) => (
-                  <tr key={user._id} className="hover:bg-indigo-50/30 transition-colors">
+                  <tr key={user._id} className="hover:bg-rose-50/30 transition-colors">
                     <td className="px-6 py-4">
                       <div className="flex items-center gap-4">
-                        <div className="w-11 h-11 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-xl flex items-center justify-center shadow-md shadow-indigo-100">
+                        <div className="w-11 h-11 bg-gradient-to-br from-rose-500 to-red-600 rounded-xl flex items-center justify-center shadow-md shadow-rose-100">
                           <span className="text-white font-bold text-sm">
                             {user.fullName?.charAt(0)?.toUpperCase() || "U"}
                           </span>
@@ -274,22 +242,18 @@ const KYCManagement = () => {
                         </p>
                       </div>
                     </td>
-                    <td className="px-6 py-4">
-                      <div className="flex items-center gap-2 text-gray-600">
-                        <Calendar className="w-4 h-4 text-gray-400" />
-                        <span className="text-sm">
-                          {new Date(user.kyc?.submittedAt).toLocaleDateString("en-IN", {
-                            day: "numeric",
-                            month: "short",
-                            year: "numeric",
-                          })}
-                        </span>
+                    <td className="px-6 py-4 max-w-xs">
+                      <div className="flex items-start gap-2">
+                        <MessageSquare className="w-4 h-4 text-rose-400 shrink-0 mt-0.5" />
+                        <p className="text-sm text-rose-700 font-medium line-clamp-2">
+                          {user.kyc?.rejectionReason || "No reason provided"}
+                        </p>
                       </div>
                     </td>
                     <td className="px-6 py-4">
-                      <span className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-amber-100 text-amber-700 rounded-lg text-xs font-bold">
-                        <Clock className="w-3.5 h-3.5" />
-                        Pending Review
+                      <span className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-rose-100 text-rose-700 rounded-lg text-xs font-bold">
+                        <XCircle className="w-3.5 h-3.5" />
+                        Rejected
                       </span>
                     </td>
                     <td className="px-6 py-4">
@@ -302,18 +266,11 @@ const KYCManagement = () => {
                           <Eye className="w-5 h-5" />
                         </button>
                         <button
-                          onClick={() => handleApprove(user._id)}
+                          onClick={() => handleReApprove(user._id)}
                           className="p-2.5 text-emerald-600 hover:bg-emerald-100 rounded-xl transition-all"
-                          title="Approve"
+                          title="Re-Approve"
                         >
                           <CheckCircle className="w-5 h-5" />
-                        </button>
-                        <button
-                          onClick={() => openRejectModal(user)}
-                          className="p-2.5 text-rose-600 hover:bg-rose-100 rounded-xl transition-all"
-                          title="Reject"
-                        >
-                          <XCircle className="w-5 h-5" />
                         </button>
                       </div>
                     </td>
@@ -335,7 +292,7 @@ const KYCManagement = () => {
                       setItemsPerPage(Number(e.target.value));
                       setCurrentPage(1);
                     }}
-                    className="px-3 py-1.5 border border-gray-200 rounded-lg bg-white font-medium focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                    className="px-3 py-1.5 border border-gray-200 rounded-lg bg-white font-medium focus:outline-none focus:ring-2 focus:ring-rose-500"
                   >
                     <option value={10}>10</option>
                     <option value={15}>15</option>
@@ -372,7 +329,7 @@ const KYCManagement = () => {
                           key={page}
                           onClick={() => setCurrentPage(page)}
                           className={`min-w-[40px] px-3 py-2 text-sm font-semibold rounded-lg border transition-all ${currentPage === page
-                              ? "bg-indigo-600 text-white border-indigo-600 shadow-md shadow-indigo-200"
+                              ? "bg-rose-600 text-white border-rose-600 shadow-md shadow-rose-200"
                               : "bg-white text-gray-700 hover:bg-gray-50 border-gray-200"
                             }`}
                         >
@@ -399,11 +356,11 @@ const KYCManagement = () => {
       )}
 
       {/* View Details Modal */}
-      {selectedUser && !showRejectModal && (
+      {selectedUser && (
         <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-3xl max-w-3xl w-full max-h-[90vh] overflow-hidden shadow-2xl animate-in zoom-in-95 duration-300">
+          <div className="bg-white rounded-3xl max-w-3xl w-full max-h-[90vh] overflow-hidden shadow-2xl">
             {/* Modal Header */}
-            <div className="bg-gradient-to-r from-indigo-600 to-purple-600 px-6 py-5 text-white">
+            <div className="bg-gradient-to-r from-rose-500 to-red-600 px-6 py-5 text-white">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-4">
                   <div className="w-14 h-14 bg-white/20 rounded-2xl flex items-center justify-center backdrop-blur-sm">
@@ -425,8 +382,36 @@ const KYCManagement = () => {
               </div>
             </div>
 
+            {/* Rejection Reason Banner */}
+            <div className="mx-6 mt-6 bg-rose-50 border border-rose-200 rounded-2xl p-5">
+              <div className="flex items-start gap-4">
+                <div className="w-12 h-12 bg-rose-100 rounded-xl flex items-center justify-center shrink-0">
+                  <AlertTriangle className="w-6 h-6 text-rose-600" />
+                </div>
+                <div className="flex-1">
+                  <h4 className="font-bold text-rose-800 text-sm uppercase tracking-wider mb-1">
+                    Rejection Reason
+                  </h4>
+                  <p className="text-rose-700 font-medium leading-relaxed">
+                    {selectedUser.kyc?.rejectionReason || "No reason provided"}
+                  </p>
+                  {selectedUser.updatedAt && (
+                    <p className="text-rose-400 text-xs mt-2 flex items-center gap-1.5">
+                      <Calendar className="w-3.5 h-3.5" />
+                      Rejected on{" "}
+                      {new Date(selectedUser.updatedAt).toLocaleDateString("en-IN", {
+                        day: "numeric",
+                        month: "long",
+                        year: "numeric",
+                      })}
+                    </p>
+                  )}
+                </div>
+              </div>
+            </div>
+
             {/* Modal Content */}
-            <div className="p-6 overflow-y-auto max-h-[60vh] space-y-6">
+            <div className="p-6 overflow-y-auto max-h-[50vh] space-y-6">
               {/* Aadhar Card Section */}
               <div className="bg-gray-50 rounded-2xl p-5 border border-gray-100">
                 <div className="flex items-center gap-3 mb-4">
@@ -451,7 +436,9 @@ const KYCManagement = () => {
                       src={getImageUrl(selectedUser.kyc?.aadhar?.frontImage)}
                       alt="Aadhar Front"
                       className="w-full h-44 object-cover rounded-xl border-2 border-gray-100 hover:border-indigo-300 transition-colors cursor-pointer"
-                      onClick={() => window.open(getImageUrl(selectedUser.kyc?.aadhar?.frontImage), "_blank")}
+                      onClick={() =>
+                        window.open(getImageUrl(selectedUser.kyc?.aadhar?.frontImage), "_blank")
+                      }
                     />
                   </div>
                   <div>
@@ -460,7 +447,9 @@ const KYCManagement = () => {
                       src={getImageUrl(selectedUser.kyc?.aadhar?.backImage)}
                       alt="Aadhar Back"
                       className="w-full h-44 object-cover rounded-xl border-2 border-gray-100 hover:border-indigo-300 transition-colors cursor-pointer"
-                      onClick={() => window.open(getImageUrl(selectedUser.kyc?.aadhar?.backImage), "_blank")}
+                      onClick={() =>
+                        window.open(getImageUrl(selectedUser.kyc?.aadhar?.backImage), "_blank")
+                      }
                     />
                   </div>
                 </div>
@@ -526,7 +515,9 @@ const KYCManagement = () => {
                   </div>
                   <div className="bg-white rounded-xl p-4 border border-gray-100">
                     <p className="text-xs text-gray-500 uppercase tracking-wider mb-1">Bank Name</p>
-                    <p className="font-semibold text-gray-900">{selectedUser.kyc?.bank?.bankName || "N/A"}</p>
+                    <p className="font-semibold text-gray-900">
+                      {selectedUser.kyc?.bank?.bankName || "N/A"}
+                    </p>
                   </div>
                 </div>
               </div>
@@ -540,84 +531,13 @@ const KYCManagement = () => {
               >
                 Close
               </button>
-              <div className="flex items-center gap-3">
-                <button
-                  onClick={() => openRejectModal(selectedUser)}
-                  className="px-6 py-2.5 bg-rose-600 text-white rounded-xl font-semibold hover:bg-rose-700 transition-all shadow-lg shadow-rose-200"
-                >
-                  <span className="flex items-center gap-2">
-                    <XCircle className="w-4 h-4" />
-                    Reject KYC
-                  </span>
-                </button>
-                <button
-                  onClick={() => handleApprove(selectedUser._id)}
-                  className="px-6 py-2.5 bg-emerald-600 text-white rounded-xl font-semibold hover:bg-emerald-700 transition-all shadow-lg shadow-emerald-200"
-                >
-                  <span className="flex items-center gap-2">
-                    <CheckCircle className="w-4 h-4" />
-                    Approve KYC
-                  </span>
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Reject Modal */}
-      {showRejectModal && (
-        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-3xl max-w-md w-full shadow-2xl animate-in zoom-in-95 duration-300 overflow-hidden">
-            {/* Modal Header */}
-            <div className="bg-gradient-to-r from-rose-500 to-red-600 px-6 py-5 text-white">
-              <div className="flex items-center gap-4">
-                <div className="w-12 h-12 bg-white/20 rounded-2xl flex items-center justify-center backdrop-blur-sm">
-                  <AlertTriangle className="w-6 h-6" />
-                </div>
-                <div>
-                  <h2 className="text-xl font-bold">Reject KYC Application</h2>
-                  <p className="text-white/70 text-sm">{selectedUser?.fullName}</p>
-                </div>
-              </div>
-            </div>
-
-            {/* Modal Content */}
-            <div className="p-6">
-              <label className="block text-sm font-semibold text-gray-700 mb-2">
-                Reason for Rejection *
-              </label>
-              <textarea
-                value={rejectReason}
-                onChange={(e) => setRejectReason(e.target.value)}
-                rows={4}
-                className="w-full border border-gray-200 rounded-xl px-4 py-3 focus:ring-2 focus:ring-rose-500 focus:border-transparent outline-none resize-none transition-all"
-                placeholder="Please provide a detailed reason for rejecting this KYC application..."
-              />
-              <p className="text-xs text-gray-400 mt-2">
-                This reason will be sent to the user via email notification.
-              </p>
-            </div>
-
-            {/* Modal Footer */}
-            <div className="px-6 pb-6 flex items-center justify-end gap-3">
               <button
-                onClick={() => {
-                  setShowRejectModal(false);
-                  setRejectReason("");
-                }}
-                className="px-5 py-2.5 border border-gray-300 text-gray-700 rounded-xl font-semibold hover:bg-gray-100 transition-all"
-              >
-                Cancel
-              </button>
-              <button
-                onClick={handleReject}
-                disabled={!rejectReason.trim()}
-                className="px-5 py-2.5 bg-rose-600 text-white rounded-xl font-semibold hover:bg-rose-700 transition-all shadow-lg shadow-rose-200 disabled:opacity-50 disabled:cursor-not-allowed"
+                onClick={() => handleReApprove(selectedUser._id)}
+                className="px-6 py-2.5 bg-emerald-600 text-white rounded-xl font-semibold hover:bg-emerald-700 transition-all shadow-lg shadow-emerald-200"
               >
                 <span className="flex items-center gap-2">
-                  <XCircle className="w-4 h-4" />
-                  Confirm Rejection
+                  <CheckCircle className="w-4 h-4" />
+                  Re-Approve KYC
                 </span>
               </button>
             </div>
@@ -628,4 +548,4 @@ const KYCManagement = () => {
   );
 };
 
-export default KYCManagement;
+export default RejectedKYC;

@@ -17,7 +17,8 @@ import {
   History,
   Key,
   BookOpen,
-  MessageCircle
+  MessageCircle,
+  KeyRound
 } from 'lucide-react';
 import SupportChatModal from './SupportChatModal';
 
@@ -30,13 +31,15 @@ const UserSidebar = ({ isOpen, closeSidebar }) => {
     { icon: ArrowUpCircle, label: 'Request Money', path: '/user/request-money' },
     { icon: Send, label: 'Withdraw Money', path: '/user/withdraw-money' },
     { icon: CreditCard, label: 'Payout Now', path: '/user/payout-now' },
+    { icon: Wallet, label: 'Request Payout', path: '/user/request-payout' },
     { icon: History, label: 'Transactions', path: '/user/transactions' },
     { icon: Layers, label: 'Bulk Payout', path: '/user/bulk-payout' },
     { icon: Wallet, label: 'Settlements', path: '/user/settlements' },
     { icon: BarChart3, label: 'Reports', path: '/user/reports' },
     { icon: Link2, label: 'Generate Links', path: '/user/generate-links' },
-    { icon: QrCode, label: 'QR Codes', path: '/user/qr-codes' },
+    // { icon: QrCode, label: 'QR Codes', path: '/user/qr-codes' },
     { icon: Key, label: 'API Token', path: '/user/api-token' },
+    { icon: KeyRound, label: 'Payout API Token', path: '/user/payout-api-token' },
     { icon: UserCircle, label: 'User Profile', path: '/user/user-profile' },
   ];
 

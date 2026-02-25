@@ -1,6 +1,7 @@
 import React from 'react';
 import { motion } from 'framer-motion';
 import { ArrowRight, Play } from 'lucide-react';
+import { Link } from 'react-router-dom';
 
 const Hero = () => {
   const containerVariants = {
@@ -67,12 +68,12 @@ const Hero = () => {
 
           {/* CTA Buttons */}
           <motion.div variants={itemVariants} className="flex flex-col sm:flex-row gap-4">
-            <button className="btn-primary inline-flex items-center justify-center gap-2 text-base">
+            <Link to="/register" className="btn-primary inline-flex items-center justify-center gap-2 text-base">
               Get Started <ArrowRight size={20} />
-            </button>
-            <button className="btn-secondary inline-flex items-center justify-center gap-2 text-base">
-              <Play size={20} /> Watch Demo
-            </button>
+            </Link>
+            <Link to="/login" className="btn-secondary inline-flex items-center justify-center gap-2 text-base">
+              <Play size={20} /> Login
+            </Link>
           </motion.div>
 
           {/* Stats */}

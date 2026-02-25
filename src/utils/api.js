@@ -15,7 +15,7 @@ const api = axios.create({
 // Request interceptor to add auth token
 api.interceptors.request.use(
   (config) => {
-    const token = localStorage.getItem("token");
+    const token = sessionStorage.getItem("token");
     if (token) {
       config.headers.Authorization = `Bearer ${token}`;
     }
@@ -29,8 +29,8 @@ api.interceptors.response.use(
   (response) => response,
   (error) => {
     if (error.response?.status === 401) {
-      localStorage.removeItem("token");
-      localStorage.removeItem("user");
+      sessionStorage.removeItem("token");
+      sessionStorage.removeItem("user");
       window.location.href = "/login";
     }
     return Promise.reject(error);
@@ -38,12 +38,20 @@ api.interceptors.response.use(
 );
 
 // ===============================
+
+// Razorpay QR Link API
+export const razorpayQRAPI = {
+  createLink: (amount, description) => api.post("/qr/razorpay-create-link", { amount, description }),
+};
 // AUTH APIs
 // ===============================
 export const authAPI = {
   register: (data) => api.post("/users/register", data),
   login: (data) => api.post("/users/login", data),
   adminLogin: (data) => api.post("/users/admin-login", data),
+  forgotPassword: (data) => api.post("/users/forgot-password", data),
+  resetPassword: (token, data) => api.post(`/users/reset-password/${token}`, data),
+  verifyResetToken: (token) => api.get(`/users/verify-reset-token/${token}`),
 };
 
 // ===============================
@@ -83,12 +91,28 @@ export const kycAPI = {
 };
 
 // ===============================
-// API TOKEN APIs
+// API TOKEN APIs (Original - for general use)
 // ===============================
 export const apiTokenAPI = {
   getTokens: (userId) => api.get(`/users/api-tokens/${userId}`),
   generateToken: (userId, data) => api.post(`/users/api-tokens/${userId}`, data),
   deleteToken: (userId, tokenId) => api.delete(`/users/api-tokens/${userId}/${tokenId}`),
+};
+
+// ===============================
+// PAYOUT API TOKEN APIs (With Admin Approval)
+// ===============================
+export const payoutApiTokenAPI = {
+  // User APIs
+  getTokens: (userId) => api.get(`/api-tokens/user/${userId}`),
+  requestToken: (data) => api.post(`/api-tokens/request`, data),
+  deleteToken: (tokenId) => api.delete(`/api-tokens/${tokenId}`),
+
+  // Admin APIs
+  getAllRequests: (status) => api.get(`/api-tokens/admin/all${status ? `?status=${status}` : ''}`),
+  getRequest: (requestId) => api.get(`/api-tokens/admin/${requestId}`),
+  approveRequest: (requestId, data) => api.put(`/api-tokens/admin/approve/${requestId}`, data),
+  rejectRequest: (requestId, data) => api.put(`/api-tokens/admin/reject/${requestId}`, data),
 };
 
 // ===============================
@@ -162,10 +186,13 @@ export const bulkPayoutAPI = {
 // ===============================
 // QR CODE APIs
 // ===============================
+// QR CODE APIs
+// Note: gatewayQrImageUrl is returned by backend if available
 export const qrCodeAPI = {
   generate: (data) => api.post("/qr/generate", data),
   generateStatic: (data) => api.post("/qr/generate-static", data),
   getUserQRCodes: (userId) => api.get(`/qr/user/${userId}`),
+  getAdminAll: (params) => api.get("/qr/admin/all", { params }),
   delete: (qrId) => api.delete(`/qr/${qrId}`),
 };
 
@@ -181,6 +208,11 @@ export const reportAPI = {
       responseType: "blob",
     }),
   delete: (reportId) => api.delete(`/reports/${reportId}`),
+
+  // Admin APIs
+  adminGetAll: () => api.get("/reports/admin/all"),
+  adminGetStats: () => api.get("/reports/admin/stats"),
+  adminGenerate: (data) => api.post("/reports/admin/generate", data),
 };
 
 // ===============================
@@ -191,6 +223,7 @@ export const dashboardAPI = {
   getRecentTransactions: (userId, limit = 5) =>
     api.get(`/dashboard/recent-transactions/${userId}?limit=${limit}`),
   getBalanceSummary: (userId) => api.get(`/dashboard/balance-summary/${userId}`),
+  getAdminStats: () => api.get("/dashboard/admin-stats"),
 };
 
 // ===============================
@@ -224,6 +257,23 @@ export const supportAPI = {
 };
 
 // ===============================
+// PAYOUT REQUEST APIs
+// ===============================
+export const payoutRequestAPI = {
+  // User/Vendor APIs
+  createRequest: (data) => api.post("/payout-requests/request", data),
+  getMyRequests: (params) => api.get("/payout-requests/my-requests", { params }),
+  getRequestById: (id) => api.get(`/payout-requests/request/${id}`),
+  cancelRequest: (id) => api.put(`/payout-requests/cancel/${id}`),
+  
+  // Admin APIs
+  getAllRequests: (params) => api.get("/payout-requests/admin/all", { params }),
+  approveRequest: (id, data) => api.put(`/payout-requests/admin/approve/${id}`, data),
+  rejectRequest: (id, data) => api.put(`/payout-requests/admin/reject/${id}`, data),
+  completeRequest: (id, data) => api.put(`/payout-requests/admin/complete/${id}`, data),
+};
+
+// ===============================
 // GATEWAY SETTINGS APIs
 // ===============================
 export const gatewayAPI = {
@@ -231,6 +281,41 @@ export const gatewayAPI = {
   update: (gateway, data) => api.put(`/gateway/${gateway}`, data),
   setActive: (gateway) => api.post(`/gateway/set-active/${gateway}`),
   getActive: () => api.get("/gateway/active"),
+};
+
+// ===============================
+// WEBSITE SETTINGS APIs
+// ===============================
+export const settingsAPI = {
+  get: () => api.get("/settings"),
+  getPublic: () => api.get("/settings/public"),
+  getPayment: () => api.get("/settings/payment"),
+  update: (formData) => api.put("/settings", formData, {
+    headers: { "Content-Type": "multipart/form-data" },
+  }),
+};
+
+// ===============================
+// ENQUIRY/CONTACT FORM APIs
+// ===============================
+export const enquiryAPI = {
+  // Public - Submit enquiry
+  submit: (data) => api.post("/enquiry/submit", data),
+  
+  // Admin - Get all enquiries
+  getAll: (params = {}) => api.get("/enquiry", { params }),
+  
+  // Admin - Get single enquiry
+  getById: (id) => api.get(`/enquiry/${id}`),
+  
+  // Admin - Update enquiry status
+  update: (id, data) => api.put(`/enquiry/${id}`, data),
+  
+  // Admin - Delete enquiry
+  delete: (id) => api.delete(`/enquiry/${id}`),
+  
+  // Admin - Bulk delete
+  bulkDelete: (ids) => api.post("/enquiry/bulk-delete", { ids }),
 };
 
 // ===============================

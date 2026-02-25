@@ -7,15 +7,18 @@ import {
   IndianRupee,
   CreditCard,
   CheckCircle2,
-  Zap
+  Zap,
+  AlertCircle,
 } from "lucide-react";
-import { userAPI, paymentAPI } from "../../utils/api";
+import { userAPI, paymentAPI, gatewayAPI } from "../../utils/api";
 
 const Deposit = () => {
   const { user, getUserId, getUserBalance } = useAuth();
   const [amount, setAmount] = useState(1000);
   const [balance, setBalance] = useState(0);
   const [loading, setLoading] = useState(false);
+  const [paymentError, setPaymentError] = useState("");
+  const [activeGateway, setActiveGateway] = useState(null);
 
   const userId = getUserId() || sessionStorage.getItem("userId");
 
@@ -44,7 +47,36 @@ const Deposit = () => {
     }
   }, [userId]);
 
+  useEffect(() => {
+    const fetchActiveGateway = async () => {
+      try {
+        const { data } = await gatewayAPI.getActive();
+        setActiveGateway(data?.gateway || null);
+      } catch (error) {
+        setActiveGateway(null);
+      }
+    };
+
+    fetchActiveGateway();
+  }, []);
+
+  const loadCashfree = () => {
+    return new Promise((resolve) => {
+      if (window.Cashfree) {
+        resolve(true);
+        return;
+      }
+      const script = document.createElement("script");
+      script.src = "https://sdk.cashfree.com/js/v3/cashfree.js";
+      script.onload = () => resolve(true);
+      script.onerror = () => resolve(false);
+      document.body.appendChild(script);
+    });
+  };
+
   const handlePayment = async () => {
+    setPaymentError("");
+
     if (!userId) {
       alert("User not authenticated. Please login again.");
       return;
@@ -52,7 +84,29 @@ const Deposit = () => {
 
     setLoading(true);
     try {
-      const { data } = await paymentAPI.createOrder({ amount });
+      const { data } = await paymentAPI.createOrder({ amount, userId });
+
+      if (data.gateway === "cashfree" && data.cashfreeData?.paymentSessionId) {
+        const isLoaded = await loadCashfree();
+        if (!isLoaded) {
+          throw new Error("Failed to load Cashfree checkout");
+        }
+
+        const cashfree = window.Cashfree({
+          mode: data.cashfreeData.mode || "sandbox",
+        });
+
+        await cashfree.checkout({
+          paymentSessionId: data.cashfreeData.paymentSessionId,
+          redirectTarget: "_self",
+        });
+        return;
+      }
+
+      if (data.redirect?.url) {
+        window.location.href = data.redirect.url;
+        return;
+      }
 
       if (data.gateway === "payu" && data.payuData) {
         // PayU redirect flow - create hidden form and submit
@@ -86,6 +140,7 @@ const Deposit = () => {
               ...response,
               userId,
               amount: Number(amount),
+              gateway: data.gateway,
             });
             alert("Payment Successful!");
             fetchBalance();
@@ -102,8 +157,11 @@ const Deposit = () => {
       const rzp = new window.Razorpay(options);
       rzp.open();
     } catch (error) {
-      alert("Payment Failed");
-      console.error(error);
+      const errorMessage =
+        error?.response?.data?.message ||
+        error?.response?.data?.error ||
+        "Payment Failed";
+      setPaymentError(errorMessage);
     } finally {
       setLoading(false);
     }
@@ -131,6 +189,13 @@ const Deposit = () => {
           Bank-grade Security
         </div>
       </div>
+
+      {paymentError && (
+        <div className="mb-6 flex items-start gap-2.5 p-3 rounded-xl border border-red-200 bg-red-50 text-red-700">
+          <AlertCircle className="w-4 h-4 mt-0.5 shrink-0" />
+          <p className="text-xs md:text-sm font-semibold">{paymentError}</p>
+        </div>
+      )}
 
       {/* --- Steps Progress Bar --- */}
       <div className="mb-8 md:mb-12 relative">

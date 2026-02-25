@@ -1,9 +1,59 @@
+import { useEffect, useState } from "react";
 import { useSearchParams } from "react-router-dom";
-import { CheckCircle, ArrowRight, Home } from "lucide-react";
+import { CheckCircle, Loader, XCircle, Home } from "lucide-react";
+import axios from "axios";
+
+const API_URL = import.meta.env.VITE_API_URL || "http://localhost:5000";
 
 const PaymentSuccess = () => {
   const [searchParams] = useSearchParams();
   const alreadyPaid = searchParams.get("already") === "true";
+  const flow = searchParams.get("flow");
+  const cfOrderId = searchParams.get("cf_order_id");
+  const linkId = searchParams.get("linkId");
+  const qrId = searchParams.get("qrId");
+  const messageParam = searchParams.get("message");
+
+  const successMessage = (() => {
+    if (!messageParam) return "";
+    try {
+      return decodeURIComponent(messageParam);
+    } catch {
+      return messageParam;
+    }
+  })();
+
+  const [verifying, setVerifying] = useState(Boolean(cfOrderId));
+  const [verifyError, setVerifyError] = useState("");
+
+  useEffect(() => {
+    const verifyCashfreeReturn = async () => {
+      if (!cfOrderId || !flow) {
+        setVerifying(false);
+        return;
+      }
+
+      try {
+        setVerifying(true);
+        setVerifyError("");
+
+        await axios.post(`${API_URL}/api/payment/cashfree/verify-return`, {
+          flow,
+          orderId: cfOrderId,
+          linkId,
+          qrId,
+        });
+      } catch (error) {
+        setVerifyError(
+          error?.response?.data?.message || "Payment verification failed. Please contact support."
+        );
+      } finally {
+        setVerifying(false);
+      }
+    };
+
+    verifyCashfreeReturn();
+  }, [cfOrderId, flow, linkId, qrId]);
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-emerald-50 via-white to-green-50 flex items-center justify-center p-4">
@@ -11,21 +61,31 @@ const PaymentSuccess = () => {
         {/* Success Card */}
         <div className="bg-white rounded-[2rem] shadow-2xl shadow-emerald-200/50 overflow-hidden text-center">
           {/* Success Icon */}
-          <div className="bg-gradient-to-r from-emerald-500 to-green-500 p-10">
+          <div className={`p-10 ${verifyError ? "bg-gradient-to-r from-red-500 to-rose-500" : "bg-gradient-to-r from-emerald-500 to-green-500"}`}>
             <div className="w-24 h-24 bg-white rounded-full flex items-center justify-center mx-auto shadow-xl">
-              <CheckCircle className="w-14 h-14 text-emerald-500" />
+              {verifying ? (
+                <Loader className="w-14 h-14 text-emerald-500 animate-spin" />
+              ) : verifyError ? (
+                <XCircle className="w-14 h-14 text-red-500" />
+              ) : (
+                <CheckCircle className="w-14 h-14 text-emerald-500" />
+              )}
             </div>
           </div>
 
           {/* Content */}
           <div className="p-8 space-y-4">
             <h1 className="text-3xl font-black text-slate-900">
-              {alreadyPaid ? "Already Paid!" : "Payment Successful!"}
+              {verifying ? "Verifying Payment..." : verifyError ? "Payment Verification Failed" : alreadyPaid ? "Already Paid!" : "Payment Successful!"}
             </h1>
             <p className="text-slate-500">
-              {alreadyPaid
-                ? "This payment has already been completed."
-                : "Thank you for your payment. Your transaction has been processed successfully."}
+              {verifying
+                ? "Please wait while we confirm your payment."
+                : verifyError
+                  ? verifyError
+                  : alreadyPaid
+                    ? "This payment has already been completed."
+                    : successMessage || "Thank you for your payment. Your transaction has been processed successfully."}
             </p>
 
             {/* Success Animation */}
@@ -35,9 +95,11 @@ const PaymentSuccess = () => {
               </div>
             </div>
 
-            <p className="text-sm text-slate-400">
-              A confirmation email has been sent to your email address.
-            </p>
+            {!verifyError && (
+              <p className="text-sm text-slate-400">
+                A confirmation email has been sent to your email address.
+              </p>
+            )}
 
             {/* Action Button */}
             <a

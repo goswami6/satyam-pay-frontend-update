@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from "react";
+import QRCode from "react-qr-code";
 import { useParams, useNavigate } from "react-router-dom";
 import {
   IndianRupee,
@@ -98,10 +99,23 @@ const QRCheckout = () => {
     });
   };
 
+  const loadCashfree = () => {
+    return new Promise((resolve) => {
+      if (window.Cashfree) {
+        resolve(true);
+        return;
+      }
+      const script = document.createElement("script");
+      script.src = "https://sdk.cashfree.com/js/v3/cashfree.js";
+      script.onload = () => resolve(true);
+      script.onerror = () => resolve(false);
+      document.body.appendChild(script);
+    });
+  };
+
   const handlePayNow = async () => {
-    if (!payerInfo.name.trim()) {
-      return alert("Please enter your name");
-    }
+    if (processing) return; // Prevent duplicate requests
+    const payerName = payerInfo.name.trim() || "Customer";
 
     // For static QR, validate custom amount
     const paymentAmount = qrData.isStatic ? Number(customAmount) : qrData.amount;
@@ -116,27 +130,61 @@ const QRCheckout = () => {
       const orderResponse = await axios.post(`${API_URL}/api/qr/checkout/create-order`, {
         qrId,
         amount: qrData.isStatic ? paymentAmount : undefined,
+        payerName,
+        payerEmail: payerInfo.email,
+        payerPhone: payerInfo.phone,
       });
 
       if (!orderResponse.data.success) {
+        setProcessing(false);
         throw new Error(orderResponse.data.message || "Failed to create order");
       }
 
       const data = orderResponse.data;
 
+      if (data.redirect?.url) {
+        setProcessing(false);
+        window.location.href = data.redirect.url;
+        return;
+      }
+
+      if (data.gateway === "cashfree" && data.cashfreeData?.paymentSessionId) {
+        const isLoaded = await loadCashfree();
+        if (!isLoaded) {
+          setProcessing(false);
+          throw new Error("Failed to load Cashfree checkout");
+        }
+
+        const cashfree = window.Cashfree({
+          mode: data.cashfreeData.mode || "sandbox",
+        });
+
+        const checkoutOptions = {
+          paymentSessionId: data.cashfreeData.paymentSessionId,
+          redirectTarget: "_self",
+        };
+
+        await cashfree.checkout(checkoutOptions);
+        setProcessing(false);
+        return;
+      }
+
       if (data.gateway === "payu" && data.payuData) {
-        // PayU redirect flow - create hidden form and submit
+        // If PayU UPI QR (qrString) is present, show QR for scan & pay
+        if (data.payuData.qrString) {
+          setProcessing(false);
+          setShowPayuQr({
+            qrString: data.payuData.qrString,
+            merchant: data.payuData.merchantVpa || qrData.merchant,
+            amount: data.payuData.amount,
+          });
+          return;
+        }
+        // Otherwise, fallback to PayU web form
         const form = document.createElement("form");
         form.method = "POST";
         form.action = data.payuData.payuUrl;
-        // Add payer info to PayU params
-        const payuFields = {
-          ...data.payuData,
-          firstname: payerInfo.name,
-          email: payerInfo.email || data.payuData.email,
-          phone: payerInfo.phone || "",
-        };
-        Object.entries(payuFields).forEach(([key, value]) => {
+        Object.entries(data.payuData).forEach(([key, value]) => {
           if (key === "payuUrl") return;
           const input = document.createElement("input");
           input.type = "hidden";
@@ -145,9 +193,12 @@ const QRCheckout = () => {
           form.appendChild(input);
         });
         document.body.appendChild(form);
+        setProcessing(false);
         form.submit();
         return;
       }
+      // State to show PayU QR if present
+      const [showPayuQr, setShowPayuQr] = useState(null);
 
       // Razorpay popup flow
       const isLoaded = await loadRazorpay();
@@ -165,7 +216,7 @@ const QRCheckout = () => {
         description: qrData.description || "QR Payment",
         order_id: order.id,
         prefill: {
-          name: payerInfo.name,
+          name: payerName,
           email: payerInfo.email,
           contact: payerInfo.phone,
         },
@@ -179,13 +230,19 @@ const QRCheckout = () => {
               razorpay_payment_id: response.razorpay_payment_id,
               razorpay_signature: response.razorpay_signature,
               qrId,
-              payerName: payerInfo.name,
+              gateway: data.gateway,
+              amount: paymentAmount,
+              payerName,
               payerEmail: payerInfo.email,
               payerPhone: payerInfo.phone,
             });
 
             if (verifyResponse.data.success) {
-              navigate(`/payment/success?qrId=${qrId}`);
+              navigate(
+                `/payment/success?qrId=${qrId}&message=${encodeURIComponent(
+                  "Payment successful! Transaction has been recorded."
+                )}`
+              );
             } else {
               navigate(`/payment/failed?qrId=${qrId}`);
             }
@@ -223,25 +280,64 @@ const QRCheckout = () => {
   }
 
   if (error) {
+    const isAuthError = error.toLowerCase().includes("authentication") || error.toLowerCase().includes("credential") || error.toLowerCase().includes("unauthorized");
+    const isExpired = errorStatus === "expired";
+    const isNotFound = error.toLowerCase().includes("not found");
+
+    let errorTitle = "Payment Error";
+    let errorHint = null;
+    if (isExpired) {
+      errorTitle = "QR Code Expired";
+      errorHint = "Please request a new QR code from the merchant.";
+    } else if (isAuthError) {
+      errorTitle = "Gateway Configuration Error";
+      errorHint = "Payment gateway credentials may be incorrect. Please contact the merchant or admin.";
+    } else if (isNotFound) {
+      errorTitle = "QR Code Not Found";
+      errorHint = "This QR code does not exist or has been deleted.";
+    } else {
+      errorTitle = "Payment Unavailable";
+      errorHint = "Something went wrong. Please try again or contact the merchant.";
+    }
+
     return (
       <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 flex items-center justify-center p-4">
         <div className="bg-white p-8 rounded-3xl shadow-xl max-w-md w-full text-center">
           <div className="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-4">
-            {errorStatus === "expired" ? (
+            {isExpired ? (
               <Clock className="w-8 h-8 text-red-500" />
             ) : (
               <XCircle className="w-8 h-8 text-red-500" />
             )}
           </div>
           <h1 className="text-2xl font-bold text-slate-900 mb-2">
-            {errorStatus === "expired" ? "QR Code Expired" : "Invalid QR Code"}
+            {errorTitle}
           </h1>
           <p className="text-slate-500">{error}</p>
-          {errorStatus === "expired" && (
+          {errorHint && (
             <p className="text-sm text-slate-400 mt-4">
-              Please request a new QR code from the merchant.
+              {errorHint}
             </p>
           )}
+        </div>
+      </div>
+    );
+  }
+
+  if (showPayuQr) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-indigo-50 via-white to-purple-50 flex items-center justify-center p-4">
+        <div className="w-full max-w-md bg-white rounded-3xl shadow-2xl shadow-indigo-200/50 p-8 text-center">
+          <h2 className="text-xl font-bold text-indigo-600 mb-2">Scan & Pay via UPI</h2>
+          <div className="flex justify-center my-6">
+            <QRCode value={showPayuQr.qrString} size={200} />
+          </div>
+          <div className="mb-4">
+            <div className="text-slate-700 font-medium">Merchant: <span className="font-bold">{showPayuQr.merchant}</span></div>
+            <div className="text-slate-700 font-medium">Amount: <span className="font-bold">₹{showPayuQr.amount}</span></div>
+          </div>
+          <div className="text-xs text-slate-400 mb-2">Open any UPI app and scan this QR to pay instantly.</div>
+          <button onClick={() => setShowPayuQr(null)} className="mt-4 px-6 py-2 bg-indigo-600 text-white rounded-xl font-bold">Back</button>
         </div>
       </div>
     );

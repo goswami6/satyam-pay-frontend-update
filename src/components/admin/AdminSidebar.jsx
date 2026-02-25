@@ -5,17 +5,21 @@ import {
   ArrowLeftRight,
   Wallet,
   Users,
-  Package,
   Settings,
   TrendingUp,
   FileWarning,
   ShieldCheck,
   MessageCircle,
   CreditCard,
+  QrCode,
   Menu,
   X,
   ChevronDown,
-  ChevronUp
+  ChevronUp,
+  Ban,
+  KeyRound,
+  Send,
+  MessageSquare
 } from 'lucide-react';
 import AdminSection from './AdminSection';
 
@@ -23,10 +27,8 @@ const AdminSidebar = () => {
   const [isOpen, setIsOpen] = useState(false); // State for mobile visibility
   const [expandedSections, setExpandedSections] = useState({
     transactions: true,
-    settlements: true,
     reports: true,
     users: true,
-    products: true,
     system: true
   });
 
@@ -45,26 +47,25 @@ const AdminSidebar = () => {
     ],
     transactions: [
       { icon: ArrowLeftRight, label: 'Manage Payout', path: '/admin/payout' },
+      { icon: Send, label: 'Payout Requests', path: '/admin/payout-requests' },
       { icon: Wallet, label: 'Withdraw Management', path: '/admin/withdraw-management' },
       { icon: FileWarning, label: 'Manage Bulk Payouts', path: '/admin/bulk-payouts' }
-    ],
-    settlements: [
-      { icon: Wallet, label: 'All Settlements', path: '/admin/settlements' }
     ],
     reports: [
       { icon: TrendingUp, label: 'Reports', path: '/admin/reports' }
     ],
     users: [
       { icon: Users, label: 'All Users', path: '/admin/users' },
+      { icon: Ban, label: 'Blocked Users', path: '/admin/blocked-users' },
       { icon: ShieldCheck, label: 'KYC Management', path: '/admin/kyc-management' },
-      { icon: MessageCircle, label: 'Support Chats', path: '/admin/support' }
-    ],
-    products: [
-      { icon: Package, label: 'Products', path: '/admin/products' }
+      { icon: MessageCircle, label: 'Support Chats', path: '/admin/support' },
+      { icon: MessageSquare, label: 'Enquiries', path: '/admin/enquiries' }
     ],
     system: [
       { icon: Settings, label: 'Settings', path: '/admin/settings' },
-      { icon: CreditCard, label: 'Payment Gateway', path: '/admin/payment-gateway' }
+      { icon: CreditCard, label: 'Payment Gateway', path: '/admin/payment-gateway' },
+      { icon: QrCode, label: 'QR Codes', path: '/admin/qr-codes' },
+      { icon: KeyRound, label: 'API Token Requests', path: '/admin/api-token-requests' }
     ]
   };
 
@@ -145,16 +146,6 @@ const AdminSidebar = () => {
           </AdminSection>
 
           <AdminSection
-            title="SETTLEMENT MANAGEMENT"
-            isExpanded={expandedSections.settlements}
-            onToggle={() => toggleSection('settlements')}
-          >
-            {expandedSections.settlements && sidebarItems.settlements.map((item) => (
-              <SidebarLink key={item.path} {...item} />
-            ))}
-          </AdminSection>
-
-          <AdminSection
             title="REPORTS"
             isExpanded={expandedSections.reports}
             onToggle={() => toggleSection('reports')}
@@ -170,16 +161,6 @@ const AdminSidebar = () => {
             onToggle={() => toggleSection('users')}
           >
             {expandedSections.users && sidebarItems.users.map((item) => (
-              <SidebarLink key={item.path} {...item} />
-            ))}
-          </AdminSection>
-
-          <AdminSection
-            title="PAYMENT PRODUCTS CONTROL"
-            isExpanded={expandedSections.products}
-            onToggle={() => toggleSection('products')}
-          >
-            {expandedSections.products && sidebarItems.products.map((item) => (
               <SidebarLink key={item.path} {...item} />
             ))}
           </AdminSection>

@@ -58,6 +58,20 @@ const PaymentCheckout = () => {
     });
   };
 
+  const loadCashfree = () => {
+    return new Promise((resolve) => {
+      if (window.Cashfree) {
+        resolve(true);
+        return;
+      }
+      const script = document.createElement("script");
+      script.src = "https://sdk.cashfree.com/js/v3/cashfree.js";
+      script.onload = () => resolve(true);
+      script.onerror = () => resolve(false);
+      document.body.appendChild(script);
+    });
+  };
+
   const handlePayNow = async () => {
     try {
       setProcessing(true);
@@ -68,6 +82,30 @@ const PaymentCheckout = () => {
       });
 
       const data = orderResponse.data;
+
+      if (data.redirect?.url) {
+        window.location.href = data.redirect.url;
+        return;
+      }
+
+      if (data.gateway === "cashfree" && data.cashfreeData?.paymentSessionId) {
+        const isLoaded = await loadCashfree();
+        if (!isLoaded) {
+          throw new Error("Failed to load Cashfree checkout");
+        }
+
+        const cashfree = window.Cashfree({
+          mode: data.cashfreeData.mode || "sandbox",
+        });
+
+        const checkoutOptions = {
+          paymentSessionId: data.cashfreeData.paymentSessionId,
+          redirectTarget: "_self",
+        };
+
+        await cashfree.checkout(checkoutOptions);
+        return;
+      }
 
       if (data.gateway === "payu" && data.payuData) {
         // PayU redirect flow - create hidden form and submit
@@ -116,6 +154,7 @@ const PaymentCheckout = () => {
               razorpay_payment_id: response.razorpay_payment_id,
               razorpay_signature: response.razorpay_signature,
               linkId,
+              gateway: data.gateway,
             });
 
             if (verifyResponse.data.success) {

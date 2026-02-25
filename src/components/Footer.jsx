@@ -1,5 +1,6 @@
 import React from 'react';
 import { motion } from 'framer-motion';
+import { Link } from 'react-router-dom';
 import { Mail, Phone, MapPin, ExternalLink, ScrollText, Github, Linkedin, Twitter } from 'lucide-react';
 
 const Footer = () => {
@@ -9,40 +10,40 @@ const Footer = () => {
     {
       title: 'Product',
       links: [
-        { label: 'Payment Gateway', href: '#' },
-        { label: 'Banking', href: '#' },
-        { label: 'Payroll', href: '#' },
-        { label: 'Engage', href: '#' },
-        { label: 'Pricing', href: '#' },
+        { label: 'Payment Gateway', href: '/', isExternal: false },
+        { label: 'Banking', href: '/', isExternal: false },
+        { label: 'Payroll', href: '/', isExternal: false },
+        { label: 'Engage', href: '/', isExternal: false },
+        { label: 'Pricing', href: '/pricing', isExternal: false },
       ],
     },
     {
       title: 'Developers',
       links: [
-        { label: 'Documentation', href: '#' },
-        { label: 'API Reference', href: '#' },
-        { label: 'Code Samples', href: '#' },
-        { label: 'SDKs', href: '#' },
-        { label: 'Status', href: '#' },
+        { label: 'Documentation', href: '/api-documentation', isExternal: false },
+        { label: 'API Reference', href: '/api-documentation', isExternal: false },
+        { label: 'Code Samples', href: '/api-documentation', isExternal: false },
+        { label: 'SDKs', href: '/api-documentation', isExternal: false },
+        { label: 'Status', href: '/', isExternal: false },
       ],
     },
     {
       title: 'Company',
       links: [
-        { label: 'About', href: '#' },
-        { label: 'Blog', href: '#' },
-        { label: 'Careers', href: '#' },
-        { label: 'Press', href: '#' },
-        { label: 'Contact', href: '#' },
+        { label: 'About', href: '/', isExternal: false },
+        { label: 'Blog', href: '/', isExternal: false },
+        { label: 'Careers', href: '/', isExternal: false },
+        { label: 'Press', href: '/', isExternal: false },
+        { label: 'Contact', href: '/contact', isExternal: false },
       ],
     },
     {
       title: 'Legal',
       links: [
-        { label: 'Privacy', href: '#' },
-        { label: 'Terms', href: '#' },
-        { label: 'Security', href: '#' },
-        { label: 'Compliance', href: '#' },
+        { label: 'Privacy', href: '/', isExternal: false },
+        { label: 'Terms', href: '/', isExternal: false },
+        { label: 'Security', href: '/', isExternal: false },
+        { label: 'Compliance', href: '/', isExternal: false },
       ],
     },
   ];
@@ -63,8 +64,8 @@ const Footer = () => {
             <p className="text-gray-400">Start accepting payments today with Razorpay</p>
           </div>
           <div className="flex gap-4 md:justify-end">
-            <button className="btn-primary">Get Started</button>
-            <button className="btn-secondary">Schedule Demo</button>
+            <Link to="/register" className="btn-primary">Get Started</Link>
+            <Link to="/contact" className="btn-secondary">Schedule Demo</Link>
           </div>
         </div>
       </motion.div>
@@ -81,12 +82,12 @@ const Footer = () => {
               viewport={{ once: true }}
               transition={{ duration: 0.6 }}
             >
-              <div className="flex items-center gap-2 font-bold text-2xl text-blue-400 mb-4">
+              <Link to="/" className="flex items-center gap-2 font-bold text-2xl text-blue-400 mb-4 hover:opacity-80 transition-opacity">
                 <div className="w-8 h-8 bg-gradient-to-r from-blue-600 to-purple-600 rounded-lg flex items-center justify-center text-white font-bold">
                   RZ
                 </div>
                 Razorpay
-              </div>
+              </Link>
               <p className="text-gray-400 mb-6 max-w-sm">
                 The fintech platform that empowers businesses to grow. Accept payments, manage finances, and delight customers.
               </p>
@@ -149,13 +150,24 @@ const Footer = () => {
                 <ul className="space-y-3">
                   {section.links.map((link, linkIdx) => (
                     <li key={linkIdx}>
-                      <a
-                        href={link.href}
-                        className="text-gray-400 hover:text-white transition-colors flex items-center gap-2 text-sm"
-                      >
-                        {link.label}
-                        <ExternalLink size={14} className="opacity-0 group-hover:opacity-100" />
-                      </a>
+                      {link.isExternal ? (
+                        <a
+                          href={link.href}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="text-gray-400 hover:text-white transition-colors flex items-center gap-2 text-sm"
+                        >
+                          {link.label}
+                          <ExternalLink size={14} className="opacity-0 group-hover:opacity-100" />
+                        </a>
+                      ) : (
+                        <Link
+                          to={link.href}
+                          className="text-gray-400 hover:text-white transition-colors text-sm"
+                        >
+                          {link.label}
+                        </Link>
+                      )}
                     </li>
                   ))}
                 </ul>

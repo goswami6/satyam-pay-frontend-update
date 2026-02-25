@@ -1,8 +1,11 @@
 import React from 'react';
 import { motion } from 'framer-motion';
+import { Link } from 'react-router-dom';
 import Hero from '../components/Hero';
 import FeatureSection from '../components/FeatureSection';
 import Testimonials from '../components/Testimonials';
+import Navbar from '../components/Navbar';
+import Footer from '../components/Footer';
 
 const Home = () => {
   const sections = [
@@ -44,6 +47,9 @@ const Home = () => {
 
   return (
     <div className="bg-white">
+      {/* Navbar */}
+      <Navbar isLoggedIn={false} />
+
       {/* Hero Section */}
       <Hero />
 
@@ -236,15 +242,18 @@ razorpay.open();`}</pre>
             transition={{ duration: 0.6 }}
             className="flex flex-col sm:flex-row gap-4 justify-center"
           >
-            <button className="bg-white text-blue-600 font-bold px-8 py-3 rounded-lg hover:bg-blue-50 transition-colors shadow-lg">
+            <Link to="/register" className="bg-white text-blue-600 font-bold px-8 py-3 rounded-lg hover:bg-blue-50 transition-colors shadow-lg">
               Get Started Free
-            </button>
-            <button className="border-2 border-white text-white font-bold px-8 py-3 rounded-lg hover:bg-white/10 transition-colors">
-              Schedule a Demo
-            </button>
+            </Link>
+            <Link to="/login" className="border-2 border-white text-white font-bold px-8 py-3 rounded-lg hover:bg-white/10 transition-colors">
+              Login to Dashboard
+            </Link>
           </motion.div>
         </div>
       </section>
+
+      {/* Footer */}
+      <Footer />
     </div>
   );
 };

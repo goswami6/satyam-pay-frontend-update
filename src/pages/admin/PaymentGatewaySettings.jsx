@@ -15,6 +15,7 @@ import {
   AlertCircle,
   ExternalLink,
   Copy,
+  QrCode,
 } from "lucide-react";
 import { gatewayAPI } from "../../utils/api";
 
@@ -111,17 +112,28 @@ const PaymentGatewaySettings = () => {
     setShowSecrets((prev) => ({ ...prev, [gateway]: !prev[gateway] }));
   };
 
-  const gatewayIcons = {
-    razorpay: (
-      <div className="w-12 h-12 bg-blue-600 rounded-2xl flex items-center justify-center shadow-lg shadow-blue-200">
+  const getGatewayIcon = (gateway) => {
+    if (gateway === "razorpay") {
+      return (
+        <div className="w-12 h-12 bg-blue-600 rounded-2xl flex items-center justify-center shadow-lg shadow-blue-200">
+          <CreditCard className="w-6 h-6 text-white" />
+        </div>
+      );
+    }
+
+    if (gateway === "payu") {
+      return (
+        <div className="w-12 h-12 bg-green-600 rounded-2xl flex items-center justify-center shadow-lg shadow-green-200">
+          <Zap className="w-6 h-6 text-white" />
+        </div>
+      );
+    }
+
+    return (
+      <div className="w-12 h-12 bg-slate-700 rounded-2xl flex items-center justify-center shadow-lg shadow-slate-200">
         <CreditCard className="w-6 h-6 text-white" />
       </div>
-    ),
-    payu: (
-      <div className="w-12 h-12 bg-green-600 rounded-2xl flex items-center justify-center shadow-lg shadow-green-200">
-        <Zap className="w-6 h-6 text-white" />
-      </div>
-    ),
+    );
   };
 
   const formatDate = (dateString) => {
@@ -195,9 +207,24 @@ const PaymentGatewaySettings = () => {
                   <span className="px-3 py-1 bg-white/20 rounded-full text-xs font-bold uppercase tracking-wider backdrop-blur-sm">
                     Gateway: {activeGateway.gateway.toUpperCase()}
                   </span>
-                  <span className="px-3 py-1 bg-white/20 rounded-full text-xs font-bold uppercase tracking-wider backdrop-blur-sm">
+                  <span className={`px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wider backdrop-blur-sm ${activeGateway.mode === "Live Mode"
+                    ? "bg-emerald-400/30 text-emerald-100"
+                    : "bg-amber-400/30 text-amber-100"
+                    }`}>
                     Mode: {activeGateway.mode}
                   </span>
+                </div>
+                {/* Dynamic QR / Scan & Pay info */}
+                <div className="mt-3 flex flex-wrap items-center gap-2">
+                  <span className="px-3 py-1 bg-white/10 rounded-full text-[11px] font-semibold text-white/80 backdrop-blur-sm flex items-center gap-1.5">
+                    <QrCode className="w-3.5 h-3.5" />
+                    Dynamic QR — Scan & Pay supported
+                  </span>
+                  {activeGateway.mode === "Live Mode" && (
+                    <span className="px-2 py-1 bg-emerald-500/30 rounded-full text-[10px] font-bold text-emerald-200">
+                      UPI QR Active
+                    </span>
+                  )}
                 </div>
               </div>
               <div className="text-right">
@@ -218,25 +245,37 @@ const PaymentGatewaySettings = () => {
         {gateways.map((gw) => {
           const data = editData[gw.gateway] || {};
           const isGatewayActive = activeGateway?.gateway === gw.gateway;
+          const isGatewayIntegrated =
+            typeof gw.isIntegrated === "boolean"
+              ? gw.isIntegrated
+              : ["razorpay", "payu", "cashfree"].includes(gw.gateway);
 
           return (
             <div
               key={gw.gateway}
               className={`bg-white rounded-3xl border-2 shadow-xl overflow-hidden transition-all duration-300 ${isGatewayActive
-                  ? "border-indigo-200 shadow-indigo-100/50"
-                  : "border-slate-100 shadow-slate-100/50"
+                ? "border-indigo-200 shadow-indigo-100/50"
+                : "border-slate-100 shadow-slate-100/50"
                 }`}
             >
               {/* Card Header */}
               <div className="p-6 md:p-8 border-b border-slate-100">
                 <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                   <div className="flex items-center gap-4">
-                    {gatewayIcons[gw.gateway]}
+                    {getGatewayIcon(gw.gateway)}
                     <div>
                       <div className="flex items-center gap-3">
                         <h3 className="text-xl font-black text-slate-900">
                           {gw.label}
                         </h3>
+                        <span
+                          className={`px-2.5 py-1 rounded-full text-[10px] font-black uppercase tracking-wider ${isGatewayIntegrated
+                            ? "bg-blue-100 text-blue-700"
+                            : "bg-slate-100 text-slate-600"
+                            }`}
+                        >
+                          {isGatewayIntegrated ? "Integrated" : "Coming Soon"}
+                        </span>
                         {isGatewayActive && (
                           <span className="px-2.5 py-1 bg-emerald-100 text-emerald-700 rounded-full text-[10px] font-black uppercase tracking-wider flex items-center gap-1">
                             <span className="w-1.5 h-1.5 bg-emerald-500 rounded-full" />
@@ -271,7 +310,7 @@ const PaymentGatewaySettings = () => {
                 {/* Key ID */}
                 <div>
                   <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">
-                    Gateway Key / ID
+                    {gw.keyIdLabel || "Gateway Key / ID"}
                   </label>
                   <input
                     type="text"
@@ -281,8 +320,8 @@ const PaymentGatewaySettings = () => {
                     }
                     placeholder={
                       gw.gateway === "razorpay"
-                        ? "rzp_live_xxxxxxxx"
-                        : "Your Merchant Key"
+                        ? "rzp_test_xxxxxxxx"
+                        : `Enter ${gw.keyIdLabel || "gateway key"}`
                     }
                     className="w-full px-4 py-3.5 bg-slate-50 border border-slate-200 rounded-2xl text-sm font-mono focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:bg-white focus:border-indigo-300 transition-all"
                   />
@@ -291,7 +330,7 @@ const PaymentGatewaySettings = () => {
                 {/* Key Secret */}
                 <div>
                   <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">
-                    Gateway Secret / Salt
+                    {gw.keySecretLabel || "Gateway Secret / Salt"}
                   </label>
                   <div className="relative">
                     <input
@@ -334,8 +373,8 @@ const PaymentGatewaySettings = () => {
                       updateField(gw.gateway, "isEnabled", !data.isEnabled)
                     }
                     className={`flex-1 flex items-center justify-between p-4 rounded-2xl border-2 cursor-pointer transition-all ${data.isEnabled
-                        ? "bg-emerald-50 border-emerald-200"
-                        : "bg-slate-50 border-slate-200"
+                      ? "bg-emerald-50 border-emerald-200"
+                      : "bg-slate-50 border-slate-200"
                       }`}
                   >
                     <div>
@@ -359,8 +398,8 @@ const PaymentGatewaySettings = () => {
                       updateField(gw.gateway, "isTestMode", !data.isTestMode)
                     }
                     className={`flex-1 flex items-center justify-between p-4 rounded-2xl border-2 cursor-pointer transition-all ${data.isTestMode
-                        ? "bg-amber-50 border-amber-200"
-                        : "bg-blue-50 border-blue-200"
+                      ? "bg-amber-50 border-amber-200"
+                      : "bg-blue-50 border-blue-200"
                       }`}
                   >
                     <div>
@@ -375,8 +414,8 @@ const PaymentGatewaySettings = () => {
                     </div>
                     <span
                       className={`px-3 py-1.5 rounded-full text-[10px] font-black uppercase tracking-wider ${data.isTestMode
-                          ? "bg-amber-200 text-amber-800"
-                          : "bg-blue-200 text-blue-800"
+                        ? "bg-amber-200 text-amber-800"
+                        : "bg-blue-200 text-blue-800"
                         }`}
                     >
                       {data.isTestMode ? "TEST" : "LIVE"}
@@ -399,6 +438,30 @@ const PaymentGatewaySettings = () => {
                     Save Settings
                   </button>
                 </div>
+
+                {/* QR Scan & Pay Info */}
+                {isGatewayActive && gw.isEnabled && !data.isTestMode && (
+                  <div className="mt-4 p-4 bg-emerald-50 border border-emerald-200 rounded-2xl flex items-start gap-3">
+                    <QrCode className="w-5 h-5 text-emerald-600 shrink-0 mt-0.5" />
+                    <div>
+                      <p className="text-sm font-bold text-emerald-800">Dynamic QR — Scan & Pay Active</p>
+                      <p className="text-xs text-emerald-700 mt-1">
+                        Live mode is ON. When users generate dynamic QR codes, scanning them will <strong>directly open UPI app for payment</strong> — no URL prompt will appear. This works for {gw.label} gateway. Change to another gateway from admin panel to switch QR provider.
+                      </p>
+                    </div>
+                  </div>
+                )}
+                {isGatewayActive && gw.isEnabled && data.isTestMode && (
+                  <div className="mt-4 p-4 bg-amber-50 border border-amber-200 rounded-2xl flex items-start gap-3">
+                    <AlertCircle className="w-5 h-5 text-amber-600 shrink-0 mt-0.5" />
+                    <div>
+                      <p className="text-sm font-bold text-amber-800">Test Mode — QR Scan Limited</p>
+                      <p className="text-xs text-amber-700 mt-1">
+                        In test mode, generated QR codes will open a checkout URL instead of direct UPI scan. Switch to <strong>Live Mode</strong> for real UPI QR scan-and-pay functionality.
+                      </p>
+                    </div>
+                  </div>
+                )}
               </div>
             </div>
           );
@@ -418,88 +481,33 @@ const PaymentGatewaySettings = () => {
           </div>
         </div>
         <div className="p-6 md:p-8">
-          <div className="grid md:grid-cols-2 gap-8">
-            {/* Razorpay Setup */}
-            <div>
-              <div className="flex items-center gap-2 mb-4">
-                <CreditCard className="w-5 h-5 text-blue-600" />
-                <h4 className="text-sm font-black text-slate-800 uppercase tracking-wider">
-                  Razorpay Setup
-                </h4>
-              </div>
-              <ol className="space-y-3">
-                {[
-                  {
-                    text: "Go to Razorpay Dashboard",
-                    link: "https://dashboard.razorpay.com",
-                  },
-                  { text: "Navigate to Settings → API Keys" },
-                  { text: "Copy Key ID and Key Secret" },
-                  { text: "Paste them in the form above" },
-                  { text: "Enable the gateway and save" },
-                ].map((step, i) => (
-                  <li key={i} className="flex items-start gap-3">
-                    <span className="w-6 h-6 bg-blue-100 text-blue-700 rounded-full flex items-center justify-center text-xs font-black shrink-0 mt-0.5">
-                      {i + 1}
-                    </span>
-                    <span className="text-sm text-slate-600 font-medium">
-                      {step.text}
-                      {step.link && (
-                        <a
-                          href={step.link}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="inline-flex items-center gap-1 text-blue-600 hover:text-blue-700 ml-1"
-                        >
-                          <ExternalLink className="w-3 h-3" />
-                        </a>
-                      )}
-                    </span>
-                  </li>
-                ))}
-              </ol>
-            </div>
+          <div className="grid md:grid-cols-2 gap-6">
+            {gateways.map((gw) => (
+              <div key={`setup_${gw.gateway}`} className="p-5 rounded-2xl border border-slate-100 bg-slate-50/60">
+                <div className="flex items-center gap-2 mb-3">
+                  <div className="w-7 h-7 rounded-lg bg-white border border-slate-200 flex items-center justify-center">
+                    <CreditCard className="w-4 h-4 text-slate-600" />
+                  </div>
+                  <h4 className="text-sm font-black text-slate-800 uppercase tracking-wider">
+                    {gw.label}
+                  </h4>
+                </div>
 
-            {/* PayU Setup */}
-            <div>
-              <div className="flex items-center gap-2 mb-4">
-                <Zap className="w-5 h-5 text-green-600" />
-                <h4 className="text-sm font-black text-slate-800 uppercase tracking-wider">
-                  PayU Setup
-                </h4>
+                <p className="text-xs text-slate-600 leading-relaxed">
+                  {gw.setupNote || "Use gateway dashboard to generate test credentials and configure here."}
+                </p>
+
+                <a
+                  href={gw.docsUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="mt-3 inline-flex items-center gap-1.5 text-xs font-bold text-indigo-600 hover:text-indigo-700"
+                >
+                  Open Docs
+                  <ExternalLink className="w-3 h-3" />
+                </a>
               </div>
-              <ol className="space-y-3">
-                {[
-                  {
-                    text: "Go to PayU Onboarding",
-                    link: "https://onboarding.payu.in",
-                  },
-                  { text: "Get your Merchant Key and Salt" },
-                  { text: "Copy Key and Salt values" },
-                  { text: "Paste them in the form above" },
-                  { text: "Enable the gateway and save" },
-                ].map((step, i) => (
-                  <li key={i} className="flex items-start gap-3">
-                    <span className="w-6 h-6 bg-green-100 text-green-700 rounded-full flex items-center justify-center text-xs font-black shrink-0 mt-0.5">
-                      {i + 1}
-                    </span>
-                    <span className="text-sm text-slate-600 font-medium">
-                      {step.text}
-                      {step.link && (
-                        <a
-                          href={step.link}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="inline-flex items-center gap-1 text-green-600 hover:text-green-700 ml-1"
-                        >
-                          <ExternalLink className="w-3 h-3" />
-                        </a>
-                      )}
-                    </span>
-                  </li>
-                ))}
-              </ol>
-            </div>
+            ))}
           </div>
 
           {/* Warning Note */}
@@ -512,6 +520,19 @@ const PaymentGatewaySettings = () => {
                 as active, it will be used for all payment operations across the
                 platform. Make sure your credentials are correct before going
                 live.
+              </p>
+            </div>
+          </div>
+
+          {/* QR Scan-and-Pay Note */}
+          <div className="mt-4 p-4 bg-blue-50 border border-blue-200 rounded-2xl flex items-start gap-3">
+            <QrCode className="w-5 h-5 text-blue-600 shrink-0 mt-0.5" />
+            <div>
+              <p className="text-sm font-bold text-blue-800">Dynamic QR — Scan & Pay</p>
+              <p className="text-xs text-blue-700 mt-1">
+                When a gateway is <strong>active</strong> and in <strong>Live Mode</strong>, dynamic QR codes generated by users will use the gateway's UPI QR API.
+                Scanning these QR codes directly opens the UPI app for payment — <strong>no "Open URL?" prompt</strong>. This works for Razorpay, PayU, and Cashfree.
+                Changing the active gateway here will immediately affect all new QR codes generated on the user page.
               </p>
             </div>
           </div>

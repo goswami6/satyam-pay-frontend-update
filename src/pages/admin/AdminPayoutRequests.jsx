@@ -37,6 +37,10 @@ const AdminPayoutRequests = () => {
   const [transactionId, setTransactionId] = useState("");
   const [message, setMessage] = useState({ type: "", text: "" });
 
+  // Pagination state
+  const [currentPage, setCurrentPage] = useState(1);
+  const [itemsPerPage, setItemsPerPage] = useState(15);
+
   useEffect(() => {
     fetchRequests();
   }, [activeTab]);
@@ -65,10 +69,19 @@ const AdminPayoutRequests = () => {
       setShowModal(false);
       fetchRequests();
     } catch (error) {
-      setMessage({
-        type: "error",
-        text: error.response?.data?.error || "Failed to approve request",
-      });
+      const errorData = error.response?.data;
+      if (errorData?.balance !== undefined && errorData?.required !== undefined) {
+        // Insufficient balance error with details
+        setMessage({
+          type: "error",
+          text: `Insufficient Balance! User has ₹${errorData.balance?.toFixed(2)} but requires ₹${errorData.required?.toFixed(2)}. Shortfall: ₹${(errorData.required - errorData.balance)?.toFixed(2)}`,
+        });
+      } else {
+        setMessage({
+          type: "error",
+          text: errorData?.error || "Failed to approve request",
+        });
+      }
     } finally {
       setProcessing(false);
     }
@@ -171,6 +184,43 @@ const AdminPayoutRequests = () => {
     );
   });
 
+  // Pagination logic
+  const totalPages = Math.ceil(filteredRequests.length / itemsPerPage);
+  const startIndex = (currentPage - 1) * itemsPerPage;
+  const endIndex = startIndex + itemsPerPage;
+  const paginatedRequests = filteredRequests.slice(startIndex, endIndex);
+
+  // Reset page when filter changes
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [activeTab, searchQuery]);
+
+  // Generate page numbers
+  const getPageNumbers = () => {
+    const pages = [];
+    const maxVisiblePages = 5;
+    if (totalPages <= maxVisiblePages) {
+      for (let i = 1; i <= totalPages; i++) pages.push(i);
+    } else {
+      if (currentPage <= 3) {
+        for (let i = 1; i <= 4; i++) pages.push(i);
+        pages.push('...');
+        pages.push(totalPages);
+      } else if (currentPage >= totalPages - 2) {
+        pages.push(1);
+        pages.push('...');
+        for (let i = totalPages - 3; i <= totalPages; i++) pages.push(i);
+      } else {
+        pages.push(1);
+        pages.push('...');
+        for (let i = currentPage - 1; i <= currentPage + 1; i++) pages.push(i);
+        pages.push('...');
+        pages.push(totalPages);
+      }
+    }
+    return pages;
+  };
+
   const tabs = [
     { id: "requested", label: "Pending", count: getStatCount("requested") },
     { id: "approved", label: "Approved", count: getStatCount("approved") },
@@ -250,8 +300,8 @@ const AdminPayoutRequests = () => {
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -10 }}
             className={`p-4 rounded-2xl mb-6 flex items-center gap-3 ${message.type === "success"
-                ? "bg-emerald-50 text-emerald-700 border border-emerald-200"
-                : "bg-red-50 text-red-700 border border-red-200"
+              ? "bg-emerald-50 text-emerald-700 border border-emerald-200"
+              : "bg-red-50 text-red-700 border border-red-200"
               }`}
           >
             {message.type === "success" ? (
@@ -282,8 +332,8 @@ const AdminPayoutRequests = () => {
                   key={tab.id}
                   onClick={() => setActiveTab(tab.id)}
                   className={`px-4 py-2 rounded-xl text-xs font-medium whitespace-nowrap transition-colors flex items-center gap-2 ${activeTab === tab.id
-                      ? "bg-indigo-100 text-indigo-700"
-                      : "bg-slate-100 text-slate-600 hover:bg-slate-200"
+                    ? "bg-indigo-100 text-indigo-700"
+                    : "bg-slate-100 text-slate-600 hover:bg-slate-200"
                     }`}
                 >
                   {tab.label}
@@ -349,7 +399,7 @@ const AdminPayoutRequests = () => {
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
-                {filteredRequests.map((request) => (
+                {paginatedRequests.map((request) => (
                   <tr key={request._id} className="hover:bg-slate-50 transition-colors">
                     <td className="px-6 py-4">
                       <div className="flex items-center gap-3">
@@ -418,6 +468,64 @@ const AdminPayoutRequests = () => {
             </table>
           </div>
         )}
+
+        {/* Pagination Footer */}
+        {filteredRequests.length > 0 && (
+          <div className="px-6 py-4 border-t bg-slate-50">
+            <div className="flex flex-col sm:flex-row justify-between items-center gap-4">
+              <div className="flex items-center gap-2 text-sm text-gray-600">
+                <span>Show</span>
+                <select
+                  value={itemsPerPage}
+                  onChange={(e) => {
+                    setItemsPerPage(Number(e.target.value));
+                    setCurrentPage(1);
+                  }}
+                  className="px-2 py-1 border rounded-lg bg-white"
+                >
+                  <option value={10}>10</option>
+                  <option value={15}>15</option>
+                  <option value={25}>25</option>
+                  <option value={50}>50</option>
+                </select>
+                <span>entries</span>
+                <span className="mx-2 text-gray-300">|</span>
+                <span>Showing <strong>{startIndex + 1}</strong> to <strong>{Math.min(endIndex, filteredRequests.length)}</strong> of <strong>{filteredRequests.length}</strong></span>
+              </div>
+              {totalPages > 1 && (
+                <div className="flex items-center gap-1">
+                  <button
+                    onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
+                    disabled={currentPage === 1}
+                    className={`px-3 py-1.5 text-sm rounded-lg border ${currentPage === 1 ? 'bg-gray-100 text-gray-400 cursor-not-allowed' : 'bg-white text-gray-700 hover:bg-gray-50'}`}
+                  >
+                    Previous
+                  </button>
+                  {getPageNumbers().map((page, index) => (
+                    page === '...' ? (
+                      <span key={`ellipsis-${index}`} className="px-2 py-1 text-gray-500">...</span>
+                    ) : (
+                      <button
+                        key={page}
+                        onClick={() => setCurrentPage(page)}
+                        className={`min-w-[36px] px-3 py-1.5 text-sm rounded-lg border ${currentPage === page ? 'bg-blue-600 text-white border-blue-600' : 'bg-white text-gray-700 hover:bg-gray-50'}`}
+                      >
+                        {page}
+                      </button>
+                    )
+                  ))}
+                  <button
+                    onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
+                    disabled={currentPage === totalPages}
+                    className={`px-3 py-1.5 text-sm rounded-lg border ${currentPage === totalPages ? 'bg-gray-100 text-gray-400 cursor-not-allowed' : 'bg-white text-gray-700 hover:bg-gray-50'}`}
+                  >
+                    Next
+                  </button>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Detail Modal */}
@@ -483,8 +591,8 @@ const AdminPayoutRequests = () => {
                   <div className="flex justify-between">
                     <span className="text-sm text-slate-500">Current Balance:</span>
                     <span className={`text-sm font-bold ${(selectedRequest.vendorId?.balance || 0) >= selectedRequest.amount
-                        ? "text-emerald-600"
-                        : "text-red-600"
+                      ? "text-emerald-600"
+                      : "text-red-600"
                       }`}>
                       ₹{selectedRequest.vendorId?.balance?.toFixed(2) || "0.00"}
                     </span>

@@ -7,13 +7,21 @@ export default defineConfig({
   build: {
     outDir: 'dist',
     sourcemap: false,
-    minify: 'esbuild', // ✅ changed from 'terser' to 'esbuild'
+    minify: 'esbuild',
+    target: 'es2015', // Better compatibility
+    cssCodeSplit: true, // Split CSS for faster loading
+    chunkSizeWarningLimit: 500,
     rollupOptions: {
       output: {
         manualChunks: {
           vendor: ['react', 'react-dom', 'react-router-dom'],
-          ui: ['lucide-react']
-        }
+          ui: ['lucide-react'],
+          motion: ['framer-motion']
+        },
+        // Optimize chunk names for caching
+        chunkFileNames: 'assets/js/[name]-[hash].js',
+        entryFileNames: 'assets/js/[name]-[hash].js',
+        assetFileNames: 'assets/[ext]/[name]-[hash].[ext]'
       }
     }
   },
@@ -24,5 +32,9 @@ export default defineConfig({
   preview: {
     port: 4173,
     host: true
+  },
+  // ✅ Optimize dependencies
+  optimizeDeps: {
+    include: ['react', 'react-dom', 'react-router-dom', 'lucide-react']
   }
 })

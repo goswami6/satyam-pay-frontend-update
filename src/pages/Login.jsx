@@ -52,6 +52,21 @@ const Login = () => {
 
       const { token, user } = response.data;
 
+      // ✅ Role validation - prevent wrong role login
+      if (loginType === "user" && user.role === "admin") {
+        setErrors({
+          submit: "Admin accounts cannot login from User portal. Please use Admin Login."
+        });
+        return;
+      }
+
+      if (loginType === "admin" && user.role !== "admin") {
+        setErrors({
+          submit: "Only Admin accounts can login here. Please use User Login."
+        });
+        return;
+      }
+
       // ✅ Update AuthContext properly
       login(token, user);
 
@@ -96,8 +111,8 @@ const Login = () => {
           <button
             onClick={() => setLoginType("user")}
             className={`flex-1 py-2 px-4 rounded-lg font-semibold transition-all flex items-center justify-center gap-2 ${loginType === "user"
-                ? "bg-blue-600 text-white shadow-lg"
-                : "text-gray-600 hover:text-gray-900"
+              ? "bg-blue-600 text-white shadow-lg"
+              : "text-gray-600 hover:text-gray-900"
               }`}
           >
             <UserIcon size={18} />
@@ -106,8 +121,8 @@ const Login = () => {
           <button
             onClick={() => setLoginType("admin")}
             className={`flex-1 py-2 px-4 rounded-lg font-semibold transition-all flex items-center justify-center gap-2 ${loginType === "admin"
-                ? "bg-purple-600 text-white shadow-lg"
-                : "text-gray-600 hover:text-gray-900"
+              ? "bg-purple-600 text-white shadow-lg"
+              : "text-gray-600 hover:text-gray-900"
               }`}
           >
             <Shield size={18} />
@@ -211,8 +226,8 @@ const Login = () => {
             type="submit"
             disabled={isLoading}
             className={`w-full py-3 rounded-lg text-white font-semibold transition-all ${loginType === "admin"
-                ? "bg-purple-600 hover:bg-purple-700"
-                : "bg-blue-600 hover:bg-blue-700"
+              ? "bg-purple-600 hover:bg-purple-700"
+              : "bg-blue-600 hover:bg-blue-700"
               } ${isLoading ? "opacity-70 cursor-not-allowed" : ""}`}
           >
             {isLoading ? (

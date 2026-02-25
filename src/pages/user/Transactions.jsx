@@ -11,9 +11,14 @@ const UserTransactions = () => {
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("All");
   const [typeFilter, setTypeFilter] = useState("All");
+  const [categoryFilter, setCategoryFilter] = useState("All");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [selectedTxn, setSelectedTxn] = useState(null);
+
+  // Pagination state
+  const [currentPage, setCurrentPage] = useState(1);
+  const [itemsPerPage, setItemsPerPage] = useState(15);
 
   const fetchTransactions = async () => {
     try {
@@ -59,8 +64,93 @@ const UserTransactions = () => {
     const matchesType =
       typeFilter === "All" || txn.type === typeFilter;
 
-    return matchesSearch && matchesStatus && matchesType;
+    const matchesCategory =
+      categoryFilter === "All" || txn.category === categoryFilter;
+
+    return matchesSearch && matchesStatus && matchesType && matchesCategory;
   });
+
+  // Pagination logic
+  const totalPages = Math.ceil(filteredTransactions.length / itemsPerPage);
+  const startIndex = (currentPage - 1) * itemsPerPage;
+  const endIndex = startIndex + itemsPerPage;
+  const paginatedTransactions = filteredTransactions.slice(startIndex, endIndex);
+
+  // Reset to page 1 when filters change
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [search, statusFilter, typeFilter, categoryFilter]);
+
+  // Export to CSV function
+  const handleExport = () => {
+    if (filteredTransactions.length === 0) {
+      alert('No transactions to export');
+      return;
+    }
+
+    const headers = ['Date', 'Time', 'Transaction ID', 'Description', 'Category', 'Method', 'Type', 'Amount', 'Fee', 'Net Amount', 'Status', 'Bank Name', 'Account Number', 'IFSC Code', 'Notes'];
+
+    const csvData = filteredTransactions.map(txn => [
+      new Date(txn.createdAt || txn.date).toLocaleDateString('en-IN'),
+      new Date(txn.createdAt || txn.date).toLocaleTimeString('en-IN'),
+      txn.transactionId || txn._id,
+      txn.description || txn.customerName || 'Transaction',
+      txn.category || 'other',
+      txn.method || 'N/A',
+      txn.type,
+      txn.amount || 0,
+      txn.fee || 0,
+      txn.netAmount || txn.amount || 0,
+      txn.status,
+      txn.bankName || '',
+      txn.accountNumber || '',
+      txn.ifscCode || '',
+      txn.notes || ''
+    ]);
+
+    const csvContent = [headers, ...csvData]
+      .map(row => row.map(cell => `"${String(cell).replace(/"/g, '""')}"`).join(','))
+      .join('\n');
+
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const link = document.createElement('a');
+    const url = URL.createObjectURL(blob);
+    link.href = url;
+    link.download = `transactions_${new Date().toISOString().split('T')[0]}.csv`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+  };
+
+  // Generate page numbers
+  const getPageNumbers = () => {
+    const pages = [];
+    const maxVisiblePages = 5;
+
+    if (totalPages <= maxVisiblePages) {
+      for (let i = 1; i <= totalPages; i++) {
+        pages.push(i);
+      }
+    } else {
+      if (currentPage <= 3) {
+        for (let i = 1; i <= 4; i++) pages.push(i);
+        pages.push('...');
+        pages.push(totalPages);
+      } else if (currentPage >= totalPages - 2) {
+        pages.push(1);
+        pages.push('...');
+        for (let i = totalPages - 3; i <= totalPages; i++) pages.push(i);
+      } else {
+        pages.push(1);
+        pages.push('...');
+        for (let i = currentPage - 1; i <= currentPage + 1; i++) pages.push(i);
+        pages.push('...');
+        pages.push(totalPages);
+      }
+    }
+    return pages;
+  };
 
   return (
     <div className="space-y-6">
@@ -73,9 +163,12 @@ const UserTransactions = () => {
           </p>
         </div>
 
-        <button className="flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors">
+        <button
+          onClick={handleExport}
+          className="flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors"
+        >
           <Download size={18} />
-          Export
+          Export CSV
         </button>
       </div>
 
@@ -89,7 +182,7 @@ const UserTransactions = () => {
 
       {/* Filters */}
       <div className="bg-white rounded-xl shadow-sm border p-4">
-        <div className="grid md:grid-cols-3 gap-4">
+        <div className="grid md:grid-cols-4 gap-4">
           <div className="relative">
             <Search
               className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"
@@ -103,6 +196,18 @@ const UserTransactions = () => {
               className="w-full pl-10 pr-4 py-2 border rounded-lg"
             />
           </div>
+
+          <select
+            value={categoryFilter}
+            onChange={(e) => setCategoryFilter(e.target.value)}
+            className="px-4 py-2 border rounded-lg"
+          >
+            <option value="All">All Categories</option>
+            <option value="payout">Payout</option>
+            <option value="withdrawal">Withdrawal</option>
+            <option value="deposit">Deposit</option>
+            <option value="payment">Payment</option>
+          </select>
 
           <select
             value={typeFilter}
@@ -131,7 +236,7 @@ const UserTransactions = () => {
       {/* Table */}
       <div className="bg-white rounded-xl shadow-sm border">
         <div className="overflow-x-auto">
-          <table className="w-full min-w-[1000px]">
+          <table className="w-full min-w-[1200px]">
             <thead className="bg-gray-50 text-xs uppercase text-gray-500 border-b">
               <tr>
                 <th className="px-4 py-3 text-left font-semibold w-[120px]">Date</th>
@@ -140,7 +245,9 @@ const UserTransactions = () => {
                 <th className="px-4 py-3 text-center font-semibold w-[90px]">Category</th>
                 <th className="px-4 py-3 text-center font-semibold w-[80px]">Method</th>
                 <th className="px-4 py-3 text-center font-semibold w-[80px]">Type</th>
-                <th className="px-4 py-3 text-right font-semibold w-[110px]">Amount</th>
+                <th className="px-4 py-3 text-right font-semibold w-[120px]">Amount</th>
+                <th className="px-4 py-3 text-right font-semibold w-[80px]">Fee</th>
+                <th className="px-4 py-3 text-right font-semibold w-[120px]">Total</th>
                 <th className="px-4 py-3 text-center font-semibold w-[100px]">Status</th>
                 <th className="px-4 py-3 text-center font-semibold w-[60px]">View</th>
               </tr>
@@ -149,21 +256,21 @@ const UserTransactions = () => {
             <tbody className="divide-y divide-gray-100">
               {loading ? (
                 <tr>
-                  <td colSpan="9" className="text-center py-8 text-gray-500">
+                  <td colSpan="11" className="text-center py-8 text-gray-500">
                     <div className="flex items-center justify-center gap-2">
                       <div className="w-5 h-5 border-2 border-blue-500 border-t-transparent rounded-full animate-spin"></div>
                       Loading transactions...
                     </div>
                   </td>
                 </tr>
-              ) : filteredTransactions.length === 0 ? (
+              ) : paginatedTransactions.length === 0 ? (
                 <tr>
-                  <td colSpan="9" className="text-center py-8 text-gray-500">
+                  <td colSpan="11" className="text-center py-8 text-gray-500">
                     No transactions found
                   </td>
                 </tr>
               ) : (
-                filteredTransactions.map((txn) => (
+                paginatedTransactions.map((txn) => (
                   <tr key={txn._id} className="hover:bg-gray-50 transition-colors">
                     <td className="px-4 py-3 text-sm text-gray-600 whitespace-nowrap">
                       <div>{new Date(txn.createdAt || txn.date).toLocaleDateString('en-IN')}</div>
@@ -183,7 +290,11 @@ const UserTransactions = () => {
                     </td>
 
                     <td className="px-4 py-3 text-center">
-                      <span className="inline-block px-2 py-1 text-xs font-medium rounded bg-gray-100 text-gray-700 capitalize min-w-[70px]">
+                      <span className={`inline-block px-2 py-1 text-xs font-medium rounded capitalize min-w-[70px] ${txn.category === 'payout' ? 'bg-blue-100 text-blue-700' :
+                        txn.category === 'withdrawal' ? 'bg-orange-100 text-orange-700' :
+                          txn.category === 'deposit' ? 'bg-green-100 text-green-700' :
+                            'bg-gray-100 text-gray-700'
+                        }`}>
                         {txn.category || 'other'}
                       </span>
                     </td>
@@ -206,8 +317,24 @@ const UserTransactions = () => {
                     </td>
 
                     <td className="px-4 py-3 text-right">
-                      <span className={`font-semibold text-sm ${txn.type === "Credit" ? "text-green-600" : "text-red-600"}`}>
-                        {txn.type === "Credit" ? "+" : "-"}₹{(txn.amount || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                      <span className={`font-semibold text-sm ${txn.type === "Credit" ? "text-green-600" : "text-gray-700"}`}>
+                        ₹{(txn.amount || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                      </span>
+                    </td>
+
+                    <td className="px-4 py-3 text-right">
+                      {txn.fee && txn.fee > 0 ? (
+                        <span className="font-medium text-sm text-red-500">
+                          -₹{Number(txn.fee).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                        </span>
+                      ) : (
+                        <span className="text-sm text-gray-400">-</span>
+                      )}
+                    </td>
+
+                    <td className="px-4 py-3 text-right">
+                      <span className={`font-bold text-sm ${txn.type === "Credit" ? "text-green-600" : "text-red-600"}`}>
+                        {txn.type === "Credit" ? "+" : "-"}₹{Number(txn.netAmount || txn.amount || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
                       </span>
                     </td>
 
@@ -247,10 +374,80 @@ const UserTransactions = () => {
           </table>
         </div>
 
-        {/* Footer */}
-        <div className="px-4 py-3 border-t bg-gray-50 text-sm text-gray-600 flex justify-between items-center">
-          <span>Total: <strong>{filteredTransactions.length}</strong> transactions</span>
-          <span className="text-xs text-gray-400">Scroll horizontally for more details →</span>
+        {/* Footer with Pagination */}
+        <div className="px-4 py-3 border-t bg-gray-50">
+          <div className="flex flex-col sm:flex-row justify-between items-center gap-4">
+            {/* Items per page selector */}
+            <div className="flex items-center gap-2 text-sm text-gray-600">
+              <span>Show</span>
+              <select
+                value={itemsPerPage}
+                onChange={(e) => {
+                  setItemsPerPage(Number(e.target.value));
+                  setCurrentPage(1);
+                }}
+                className="px-2 py-1 border rounded-lg bg-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              >
+                <option value={10}>10</option>
+                <option value={15}>15</option>
+                <option value={25}>25</option>
+                <option value={50}>50</option>
+                <option value={100}>100</option>
+              </select>
+              <span>entries</span>
+              <span className="mx-2 text-gray-300">|</span>
+              <span>Showing <strong>{startIndex + 1}</strong> to <strong>{Math.min(endIndex, filteredTransactions.length)}</strong> of <strong>{filteredTransactions.length}</strong></span>
+            </div>
+
+            {/* Pagination */}
+            {totalPages > 1 && (
+              <div className="flex items-center gap-1">
+                {/* Previous Button */}
+                <button
+                  onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
+                  disabled={currentPage === 1}
+                  className={`px-3 py-1.5 text-sm rounded-lg border transition-colors ${currentPage === 1
+                      ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
+                      : 'bg-white text-gray-700 hover:bg-gray-50 hover:border-blue-500'
+                    }`}
+                >
+                  Previous
+                </button>
+
+                {/* Page Numbers */}
+                <div className="flex items-center gap-1">
+                  {getPageNumbers().map((page, index) => (
+                    page === '...' ? (
+                      <span key={`ellipsis-${index}`} className="px-2 py-1 text-gray-500">...</span>
+                    ) : (
+                      <button
+                        key={page}
+                        onClick={() => setCurrentPage(page)}
+                        className={`min-w-[36px] px-3 py-1.5 text-sm rounded-lg border transition-colors ${currentPage === page
+                            ? 'bg-blue-600 text-white border-blue-600'
+                            : 'bg-white text-gray-700 hover:bg-gray-50 hover:border-blue-500'
+                          }`}
+                      >
+                        {page}
+                      </button>
+                    )
+                  ))}
+                </div>
+
+                {/* Next Button */}
+                <button
+                  onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
+                  disabled={currentPage === totalPages}
+                  className={`px-3 py-1.5 text-sm rounded-lg border transition-colors ${currentPage === totalPages
+                      ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
+                      : 'bg-white text-gray-700 hover:bg-gray-50 hover:border-blue-500'
+                    }`}
+                >
+                  Next
+                </button>
+              </div>
+            )}
+          </div>
         </div>
       </div>
 
@@ -275,10 +472,10 @@ const UserTransactions = () => {
               <div className="bg-gradient-to-br from-gray-50 to-gray-100 rounded-xl p-5 text-center space-y-3">
                 <span
                   className={`inline-flex items-center gap-1.5 px-3 py-1.5 text-sm font-semibold rounded-full ${selectedTxn.status === "Completed" || selectedTxn.status === "Success"
-                      ? "bg-green-100 text-green-700"
-                      : selectedTxn.status === "Pending"
-                        ? "bg-yellow-100 text-yellow-700"
-                        : "bg-red-100 text-red-700"
+                    ? "bg-green-100 text-green-700"
+                    : selectedTxn.status === "Pending"
+                      ? "bg-yellow-100 text-yellow-700"
+                      : "bg-red-100 text-red-700"
                     }`}
                 >
                   {selectedTxn.status === "Completed" || selectedTxn.status === "Success" ? (
@@ -291,10 +488,28 @@ const UserTransactions = () => {
                   {selectedTxn.status}
                 </span>
 
-                <p className={`text-3xl font-bold ${selectedTxn.type === "Credit" ? "text-green-600" : "text-red-600"}`}>
-                  {selectedTxn.type === "Credit" ? "+" : "-"}₹{(selectedTxn.amount || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
-                </p>
-                <p className="text-sm text-gray-500">{selectedTxn.type === "Credit" ? "Money Received" : "Money Sent"}</p>
+                <div className="space-y-1">
+                  <p className="text-sm text-gray-500">{selectedTxn.category === 'payout' ? 'Payout Amount' : selectedTxn.category === 'withdrawal' ? 'Withdrawal Amount' : 'Transaction Amount'}</p>
+                  <p className={`text-3xl font-bold ${selectedTxn.type === "Credit" ? "text-green-600" : "text-gray-800"}`}>
+                    ₹{Number(selectedTxn.amount || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                  </p>
+                </div>
+
+                {selectedTxn.fee && Number(selectedTxn.fee) > 0 && (
+                  <div className="bg-red-50 rounded-lg p-3 mt-2">
+                    <p className="text-xs text-red-600">Platform Fee</p>
+                    <p className="text-lg font-bold text-red-600">-₹{Number(selectedTxn.fee).toLocaleString('en-IN', { minimumFractionDigits: 2 })}</p>
+                  </div>
+                )}
+
+                {selectedTxn.netAmount && Number(selectedTxn.netAmount) !== Number(selectedTxn.amount) && (
+                  <div className="bg-blue-50 rounded-lg p-3">
+                    <p className="text-xs text-blue-600">Total Deducted from Wallet</p>
+                    <p className={`text-xl font-bold ${selectedTxn.type === "Credit" ? "text-green-600" : "text-red-600"}`}>
+                      {selectedTxn.type === "Credit" ? "+" : "-"}₹{Number(selectedTxn.netAmount).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                    </p>
+                  </div>
+                )}
               </div>
 
               {/* Details Grid */}
@@ -320,7 +535,11 @@ const UserTransactions = () => {
 
                 <div className="flex justify-between items-center py-3 border-b border-gray-100">
                   <span className="text-sm text-gray-500">Category</span>
-                  <span className="text-sm font-medium text-gray-700 capitalize">{selectedTxn.category || 'Other'}</span>
+                  <span className={`text-sm font-medium capitalize px-2 py-0.5 rounded ${selectedTxn.category === 'payout' ? 'bg-blue-100 text-blue-700' :
+                    selectedTxn.category === 'withdrawal' ? 'bg-orange-100 text-orange-700' :
+                      selectedTxn.category === 'deposit' ? 'bg-green-100 text-green-700' :
+                        'bg-gray-100 text-gray-700'
+                    }`}>{selectedTxn.category || 'Other'}</span>
                 </div>
 
                 <div className="flex justify-between items-center py-3 border-b border-gray-100">
@@ -330,22 +549,22 @@ const UserTransactions = () => {
 
                 {selectedTxn.customerName && (
                   <div className="flex justify-between items-center py-3 border-b border-gray-100">
-                    <span className="text-sm text-gray-500">Recipient</span>
+                    <span className="text-sm text-gray-500">Beneficiary Name</span>
                     <span className="text-sm font-medium text-gray-700">{selectedTxn.customerName}</span>
                   </div>
                 )}
 
-                {selectedTxn.fee > 0 && (
+                {selectedTxn.fee && selectedTxn.fee > 0 && (
                   <div className="flex justify-between items-center py-3 border-b border-gray-100">
-                    <span className="text-sm text-gray-500">Fee</span>
-                    <span className="text-sm font-medium text-red-600">-₹{selectedTxn.fee?.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</span>
+                    <span className="text-sm text-gray-500">Platform Fee</span>
+                    <span className="text-sm font-bold text-red-600">-₹{Number(selectedTxn.fee).toLocaleString('en-IN', { minimumFractionDigits: 2 })}</span>
                   </div>
                 )}
 
-                {selectedTxn.netAmount && (
-                  <div className="flex justify-between items-center py-3 border-b border-gray-100">
-                    <span className="text-sm text-gray-500">Net Amount</span>
-                    <span className="text-sm font-medium text-gray-700">₹{selectedTxn.netAmount?.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</span>
+                {selectedTxn.netAmount && Number(selectedTxn.netAmount) !== Number(selectedTxn.amount) && (
+                  <div className="flex justify-between items-center py-3 border-b border-gray-100 bg-yellow-50 -mx-5 px-5">
+                    <span className="text-sm font-semibold text-gray-700">Total Deducted</span>
+                    <span className="text-sm font-bold text-red-600">₹{Number(selectedTxn.netAmount).toLocaleString('en-IN', { minimumFractionDigits: 2 })}</span>
                   </div>
                 )}
               </div>
@@ -353,30 +572,32 @@ const UserTransactions = () => {
               {/* Bank/UPI Details */}
               {(selectedTxn.accountNumber || selectedTxn.upiId) && (
                 <div className="bg-blue-50 rounded-lg p-4">
-                  <h4 className="text-sm font-semibold text-blue-800 mb-3">Payment Details</h4>
+                  <h4 className="text-sm font-semibold text-blue-800 mb-3">
+                    {selectedTxn.category === 'payout' ? 'Payout Sent To' : selectedTxn.category === 'withdrawal' ? 'Withdrawal Account' : 'Payment Details'}
+                  </h4>
                   <div className="space-y-2">
+                    {selectedTxn.bankName && (
+                      <div className="flex justify-between text-sm py-1">
+                        <span className="text-gray-600">Bank Name</span>
+                        <span className="font-semibold text-gray-800">{selectedTxn.bankName}</span>
+                      </div>
+                    )}
                     {selectedTxn.accountNumber && (
                       <div className="flex justify-between text-sm py-1">
                         <span className="text-gray-600">Account No.</span>
-                        <span className="font-mono text-gray-800">****{selectedTxn.accountNumber?.slice(-4)}</span>
+                        <span className="font-mono font-semibold text-gray-800">****{selectedTxn.accountNumber?.slice(-4)}</span>
                       </div>
                     )}
                     {selectedTxn.ifscCode && (
                       <div className="flex justify-between text-sm py-1">
-                        <span className="text-gray-600">IFSC</span>
-                        <span className="font-mono text-gray-800">{selectedTxn.ifscCode}</span>
-                      </div>
-                    )}
-                    {selectedTxn.bankName && (
-                      <div className="flex justify-between text-sm py-1">
-                        <span className="text-gray-600">Bank</span>
-                        <span className="text-gray-800">{selectedTxn.bankName}</span>
+                        <span className="text-gray-600">IFSC Code</span>
+                        <span className="font-mono font-semibold text-gray-800">{selectedTxn.ifscCode}</span>
                       </div>
                     )}
                     {selectedTxn.upiId && (
                       <div className="flex justify-between text-sm py-1">
                         <span className="text-gray-600">UPI ID</span>
-                        <span className="font-mono text-gray-800">{selectedTxn.upiId}</span>
+                        <span className="font-mono font-semibold text-gray-800">{selectedTxn.upiId}</span>
                       </div>
                     )}
                   </div>

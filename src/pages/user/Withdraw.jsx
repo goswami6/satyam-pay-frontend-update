@@ -17,12 +17,12 @@ import {
   Zap,
   Plus
 } from "lucide-react";
-import { userAPI, kycAPI, bankAPI, withdrawAPI } from "../../utils/api";
+import { userAPI, kycAPI, bankAPI, withdrawAPI, settingsAPI } from "../../utils/api";
 
 const Withdraw = () => {
   const { getUserId, getUserBalance } = useAuth();
   const [balance, setBalance] = useState(0);
-  const [amount, setAmount] = useState(50);
+  const [amount, setAmount] = useState("");
   const [accountName, setAccountName] = useState("");
   const [accountNumber, setAccountNumber] = useState("");
   const [ifsc, setIfsc] = useState("");
@@ -30,11 +30,22 @@ const Withdraw = () => {
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
   const [successMessage, setSuccessMessage] = useState("");
-  const [hasBankAccount, setHasBankAccount] = useState(null); // null = loading, true = has bank, false = no bank
+  const [hasBankAccount, setHasBankAccount] = useState(null);
   const [bankLoading, setBankLoading] = useState(true);
 
-  const withdrawalFee = 0.02; // Processing fee
+  // Payment settings from admin
+  const [paymentSettings, setPaymentSettings] = useState({
+    commissionRate: 2,
+    minWithdrawal: 50,
+    maxWithdrawal: 500000
+  });
+
   const userId = getUserId() || sessionStorage.getItem("userId");
+
+  // Calculate fees dynamically
+  const amountNum = Number(amount) || 0;
+  const platformFee = (amountNum * paymentSettings.commissionRate) / 100;
+  const totalDeduction = amountNum + platformFee;
 
   const fetchBalance = async () => {
     try {
@@ -91,9 +102,26 @@ const Withdraw = () => {
     }
   };
 
+  // ✅ Fetch Payment Settings from Admin
+  const fetchPaymentSettings = async () => {
+    try {
+      const { data } = await settingsAPI.getPayment();
+      if (data) {
+        setPaymentSettings({
+          commissionRate: data.commissionRate || 2,
+          minWithdrawal: data.minWithdrawal || 50,
+          maxWithdrawal: data.maxWithdrawal || 500000
+        });
+      }
+    } catch (err) {
+      console.log("Using default payment settings");
+    }
+  };
+
   useEffect(() => {
     fetchBalance();
     fetchBankDetails();
+    fetchPaymentSettings();
   }, [userId]);
 
   const validateForm = () => {
@@ -108,14 +136,18 @@ const Withdraw = () => {
     setError("");
     setSuccessMessage("");
 
-    if (!amount || Number(amount) < 50) {
-      setError("Minimum withdrawal amount is ₹50");
+    if (!amountNum || amountNum < paymentSettings.minWithdrawal) {
+      setError(`Minimum withdrawal amount is ₹${paymentSettings.minWithdrawal}`);
       return;
     }
 
-    const totalDeduction = Number(amount) + withdrawalFee;
+    if (amountNum > paymentSettings.maxWithdrawal) {
+      setError(`Maximum withdrawal amount is ₹${paymentSettings.maxWithdrawal.toLocaleString()}`);
+      return;
+    }
+
     if (totalDeduction > balance) {
-      setError(`Insufficient balance. Available: ₹${balance.toFixed(2)}`);
+      setError(`Insufficient balance. Available: ₹${balance.toFixed(2)}, Required: ₹${totalDeduction.toFixed(2)}`);
       return;
     }
 
@@ -129,7 +161,9 @@ const Withdraw = () => {
       setLoading(true);
       await withdrawAPI.request({
         userId,
-        amount: Number(amount),
+        amount: amountNum,
+        platformFee: platformFee,
+        totalDeduction: totalDeduction,
         accountName,
         accountNumber,
         ifsc,
@@ -137,7 +171,7 @@ const Withdraw = () => {
       });
 
       setSuccessMessage("✓ Request submitted! Awaiting admin approval.");
-      setAmount(50);
+      setAmount("");
 
       setTimeout(() => {
         fetchBalance();
@@ -151,13 +185,31 @@ const Withdraw = () => {
   };
 
   const withdrawFull = () => {
-    const fullAmount = Math.floor(balance - withdrawalFee - 0.5);
-    if (fullAmount >= 50) setAmount(fullAmount);
-    else setError("Insufficient balance for withdrawal.");
+    // Calculate max amount user can withdraw considering fees
+    // amount + (amount * commissionRate/100) <= balance
+    // amount * (1 + commissionRate/100) <= balance
+    // amount <= balance / (1 + commissionRate/100)
+    const maxAmount = Math.floor(balance / (1 + paymentSettings.commissionRate / 100));
+    if (maxAmount >= paymentSettings.minWithdrawal) {
+      setAmount(maxAmount.toString());
+    } else {
+      setError(`Insufficient balance. Minimum withdrawal is ₹${paymentSettings.minWithdrawal}`);
+    }
+  };
+
+  // Handle amount input - no leading zeros
+  const handleAmountChange = (e) => {
+    let value = e.target.value;
+    // Remove leading zeros
+    value = value.replace(/^0+/, '');
+    // Only allow numbers
+    if (value === '' || /^\d+$/.test(value)) {
+      setAmount(value);
+    }
   };
 
   const steps = [
-    { id: 1, label: "Amount", icon: Banknote, active: amount >= 50 },
+    { id: 1, label: "Amount", icon: Banknote, active: amountNum >= paymentSettings.minWithdrawal },
     { id: 2, label: "Bank Details", icon: Building2, active: hasBankAccount === true },
     { id: 3, label: "Verification", icon: ShieldCheck, active: false },
   ];
@@ -217,7 +269,9 @@ const Withdraw = () => {
             {/* Amount Input */}
             <div className="space-y-4">
               <div className="flex justify-between items-center px-1">
-                <label className="text-xs font-black text-slate-400 uppercase tracking-[0.15em]">Enter Amount</label>
+                <label className="text-xs font-black text-slate-400 uppercase tracking-[0.15em]">
+                  Enter Amount <span className="text-slate-300">(Min: ₹{paymentSettings.minWithdrawal})</span>
+                </label>
                 <button onClick={withdrawFull} className="text-xs font-black text-indigo-600 hover:text-indigo-700 underline decoration-2 underline-offset-4">
                   WITHDRAW ALL
                 </button>
@@ -227,13 +281,19 @@ const Withdraw = () => {
                   <IndianRupee className="h-8 w-8 text-slate-300 group-focus-within:text-indigo-600 transition-colors" />
                 </div>
                 <input
-                  type="number"
+                  type="text"
+                  inputMode="numeric"
                   value={amount}
-                  onChange={(e) => setAmount(Number(e.target.value))}
+                  onChange={handleAmountChange}
                   className="block w-full pl-16 pr-8 py-8 bg-slate-50/50 border-2 border-slate-100 rounded-[2rem] text-4xl font-black text-slate-800 focus:ring-0 focus:border-indigo-500 focus:bg-white transition-all outline-none"
                   placeholder="0"
                 />
               </div>
+              {amountNum > 0 && amountNum < paymentSettings.minWithdrawal && (
+                <p className="text-xs text-amber-600 font-medium px-2">
+                  ⚠️ Minimum amount is ₹{paymentSettings.minWithdrawal}
+                </p>
+              )}
             </div>
 
             {/* Bank Fields */}
@@ -306,7 +366,7 @@ const Withdraw = () => {
 
             <button
               onClick={handleWithdraw}
-              disabled={loading || !amount || !hasBankAccount}
+              disabled={loading || !amountNum || amountNum < paymentSettings.minWithdrawal || !hasBankAccount}
               className="w-full bg-slate-900 hover:bg-black disabled:bg-slate-100 disabled:text-slate-400 text-white py-6 rounded-[2rem] font-black text-xl shadow-2xl transition-all flex items-center justify-center gap-4 active:scale-[0.98] disabled:cursor-not-allowed"
             >
               {loading ? (
@@ -331,17 +391,21 @@ const Withdraw = () => {
 
             <div className="mt-10 space-y-4 bg-white/5 p-6 rounded-[2rem] border border-white/10 backdrop-blur-xl">
               <div className="flex justify-between text-xs font-bold">
-                <span className="text-slate-400">Requesting</span>
-                <span>₹{Number(amount || 0).toFixed(2)}</span>
+                <span className="text-slate-400">Withdrawal Amount</span>
+                <span>₹{amountNum.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</span>
               </div>
               <div className="flex justify-between text-xs font-bold">
-                <span className="text-slate-400">Processing Fee</span>
-                <span className="text-rose-400">+ ₹{withdrawalFee.toFixed(2)}</span>
+                <span className="text-slate-400">Platform Fee ({paymentSettings.commissionRate}%)</span>
+                <span className="text-rose-400">+ ₹{platformFee.toFixed(2)}</span>
               </div>
               <div className="h-px bg-white/10 my-2"></div>
+              <div className="flex justify-between text-xs font-bold">
+                <span className="text-slate-400">You'll Receive</span>
+                <span className="text-emerald-400">₹{amountNum.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</span>
+              </div>
               <div className="flex justify-between text-sm font-black">
-                <span className="text-indigo-400">Net Deduction</span>
-                <span className="text-2xl text-white">₹{(Number(amount || 0) + withdrawalFee).toFixed(2)}</span>
+                <span className="text-indigo-400">Total Deduction</span>
+                <span className="text-2xl text-white">₹{totalDeduction.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</span>
               </div>
             </div>
           </div>
@@ -357,6 +421,12 @@ const Withdraw = () => {
                   <Clock className="w-4 h-4 text-slate-400" />
                 </div>
                 <p className="text-[11px] text-slate-500 leading-relaxed pt-1">Requests are processed within <span className="text-slate-900 font-bold">24-48 business hours</span>.</p>
+              </div>
+              <div className="flex gap-4">
+                <div className="w-8 h-8 rounded-full bg-slate-50 flex items-center justify-center shrink-0">
+                  <IndianRupee className="w-4 h-4 text-slate-400" />
+                </div>
+                <p className="text-[11px] text-slate-500 leading-relaxed pt-1">Min: <span className="text-slate-900 font-bold">₹{paymentSettings.minWithdrawal}</span> | Max: <span className="text-slate-900 font-bold">₹{paymentSettings.maxWithdrawal.toLocaleString()}</span></p>
               </div>
               <div className="flex gap-4">
                 <div className="w-8 h-8 rounded-full bg-slate-50 flex items-center justify-center shrink-0">

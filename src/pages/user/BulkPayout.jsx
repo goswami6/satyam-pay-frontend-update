@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useAuth } from "../../context/AuthContext";
 import {
   UploadCloud,
@@ -9,18 +9,45 @@ import {
   Info,
   ArrowRight,
   FileText,
-  X
+  X,
+  Wallet,
+  IndianRupee
 } from "lucide-react";
-import { paymentAPI } from "../../utils/api";
+import { paymentAPI, userAPI } from "../../utils/api";
 
 const BulkPayout = () => {
-  const { getUserId, getAuthHeader } = useAuth();
+  const { getUserId, getAuthHeader, getUserBalance } = useAuth();
   const [file, setFile] = useState(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [successMessage, setSuccessMessage] = useState("");
+  const [totalAmount, setTotalAmount] = useState(0);
+  const [rowCount, setRowCount] = useState(0);
+  const [balance, setBalance] = useState(0);
+  const [balanceLoading, setBalanceLoading] = useState(true);
 
   const userId = getUserId() || sessionStorage.getItem("userId");
+
+  // Fetch user's wallet balance
+  useEffect(() => {
+    const fetchBalance = async () => {
+      if (!userId || userId === "null") return;
+      try {
+        setBalanceLoading(true);
+        setBalance(getUserBalance());
+        const { data } = await userAPI.getBalance(userId);
+        if (data?.balance !== undefined) {
+          setBalance(data.balance);
+        }
+      } catch (err) {
+        console.error("Failed to fetch balance:", err);
+        setBalance(getUserBalance());
+      } finally {
+        setBalanceLoading(false);
+      }
+    };
+    fetchBalance();
+  }, [userId, getUserBalance]);
 
   const handleFileChange = (e) => {
     const selectedFile = e.target.files[0];
@@ -43,6 +70,61 @@ const BulkPayout = () => {
     }
 
     setFile(selectedFile);
+    setError("");
+
+    // Parse CSV to calculate total amount
+    if (selectedFile.type === "text/csv" || selectedFile.name.endsWith(".csv")) {
+      const reader = new FileReader();
+      reader.onload = (event) => {
+        try {
+          const text = event.target.result;
+          const lines = text.split("\n").filter(line => line.trim());
+          if (lines.length < 2) {
+            setTotalAmount(0);
+            setRowCount(0);
+            return;
+          }
+
+          // Find amount column index
+          const headers = lines[0].split(",").map(h => h.trim().toLowerCase());
+          const amountIndex = headers.findIndex(h => h === "amount");
+
+          if (amountIndex === -1) {
+            setError("❌ Amount column not found in CSV");
+            setTotalAmount(0);
+            setRowCount(0);
+            return;
+          }
+
+          let total = 0;
+          let validRows = 0;
+
+          for (let i = 1; i < lines.length; i++) {
+            const cols = lines[i].split(",");
+            if (cols.length > amountIndex) {
+              const amount = parseFloat(cols[amountIndex].trim().replace(/[^0-9.]/g, ""));
+              if (!isNaN(amount) && amount > 0) {
+                total += amount;
+                validRows++;
+              }
+            }
+          }
+
+          setTotalAmount(total);
+          setRowCount(validRows);
+
+          // Check against balance
+          if (total > balance) {
+            setError(`❌ Insufficient Balance! Total payout amount (₹${total.toLocaleString("en-IN")}) exceeds your wallet balance (₹${balance.toLocaleString("en-IN")})`);
+          }
+        } catch (err) {
+          console.error("CSV parsing error:", err);
+          setTotalAmount(0);
+          setRowCount(0);
+        }
+      };
+      reader.readAsText(selectedFile);
+    }
   };
 
   const handleSubmit = async (e) => {
@@ -54,6 +136,17 @@ const BulkPayout = () => {
 
     if (!userId || userId === "null") {
       setError("User ID not found. Please login again.");
+      return;
+    }
+
+    // Check if total amount exceeds balance
+    if (totalAmount > balance) {
+      setError(`❌ Insufficient Balance! Total payout amount (₹${totalAmount.toLocaleString("en-IN")}) exceeds your wallet balance (₹${balance.toLocaleString("en-IN")})`);
+      return;
+    }
+
+    if (totalAmount <= 0) {
+      setError("❌ Invalid CSV file. No valid amount found.");
       return;
     }
 
@@ -71,6 +164,8 @@ const BulkPayout = () => {
       setSuccessMessage("✓ File uploaded successfully. Admin will review within 24 hours.");
       console.log("✅ Upload response:", response.data);
       setFile(null);
+      setTotalAmount(0);
+      setRowCount(0);
       setTimeout(() => setSuccessMessage(""), 5000);
     } catch (error) {
       let errorMsg = error.response?.data?.message || error.message || "Upload failed";
@@ -190,7 +285,7 @@ Bob Wilson,1122334455667788,SBIN0009012,State Bank of India,150`;
                     <p className="text-xs text-slate-400 font-medium">{(file.size / (1024 * 1024)).toFixed(2)} MB • Ready to upload</p>
                     <button
                       type="button"
-                      onClick={(e) => { e.preventDefault(); setFile(null); }}
+                      onClick={(e) => { e.preventDefault(); setFile(null); setTotalAmount(0); setRowCount(0); setError(""); }}
                       className="mt-4 flex items-center gap-1 text-xs font-bold text-rose-500 hover:text-rose-600 transition-colors"
                     >
                       <X className="w-3 h-3" /> Remove File
@@ -208,13 +303,64 @@ Bob Wilson,1122334455667788,SBIN0009012,State Bank of India,150`;
               </div>
             </div>
 
+            {/* Total Amount & Balance Summary */}
+            {file && totalAmount > 0 && (
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4 bg-slate-50 p-5 rounded-2xl border border-slate-100">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 bg-indigo-100 rounded-xl flex items-center justify-center">
+                    <FileText className="w-5 h-5 text-indigo-600" />
+                  </div>
+                  <div>
+                    <p className="text-[10px] font-black text-slate-400 uppercase tracking-wider">Total Rows</p>
+                    <p className="text-lg font-black text-slate-900">{rowCount}</p>
+                  </div>
+                </div>
+                <div className="flex items-center gap-3">
+                  <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${totalAmount > balance ? 'bg-red-100' : 'bg-emerald-100'}`}>
+                    <IndianRupee className={`w-5 h-5 ${totalAmount > balance ? 'text-red-600' : 'text-emerald-600'}`} />
+                  </div>
+                  <div>
+                    <p className="text-[10px] font-black text-slate-400 uppercase tracking-wider">Total Payout</p>
+                    <p className={`text-lg font-black ${totalAmount > balance ? 'text-red-600' : 'text-slate-900'}`}>
+                      ₹{totalAmount.toLocaleString("en-IN")}
+                    </p>
+                  </div>
+                </div>
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 bg-blue-100 rounded-xl flex items-center justify-center">
+                    <Wallet className="w-5 h-5 text-blue-600" />
+                  </div>
+                  <div>
+                    <p className="text-[10px] font-black text-slate-400 uppercase tracking-wider">Your Balance</p>
+                    <p className="text-lg font-black text-slate-900">
+                      {balanceLoading ? "..." : `₹${balance.toLocaleString("en-IN")}`}
+                    </p>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Insufficient Balance Warning */}
+            {file && totalAmount > balance && (
+              <div className="flex items-start gap-3 bg-red-50 border border-red-200 p-4 rounded-xl">
+                <AlertCircle className="w-5 h-5 text-red-500 shrink-0 mt-0.5" />
+                <div>
+                  <p className="text-sm font-bold text-red-700">Insufficient Wallet Balance</p>
+                  <p className="text-xs text-red-600 mt-1">
+                    You need ₹{(totalAmount - balance).toLocaleString("en-IN")} more to process this bulk payout.
+                    Please add funds to your wallet before submitting.
+                  </p>
+                </div>
+              </div>
+            )}
+
             <button
               type="submit"
-              disabled={loading || !file}
+              disabled={loading || !file || totalAmount > balance || totalAmount <= 0}
               className="w-full bg-slate-900 hover:bg-black disabled:bg-slate-100 disabled:text-slate-400 text-white py-5 rounded-[1.5rem] font-black text-lg shadow-2xl transition-all flex items-center justify-center gap-3 active:scale-95"
             >
-              {loading ? "Uploading to Server..." : "Submit Bulk Payout"}
-              {!loading && <ArrowRight className="w-5 h-5" />}
+              {loading ? "Uploading to Server..." : totalAmount > balance ? "Insufficient Balance" : "Submit Bulk Payout"}
+              {!loading && totalAmount <= balance && <ArrowRight className="w-5 h-5" />}
             </button>
           </form>
         </div>

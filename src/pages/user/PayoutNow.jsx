@@ -14,7 +14,7 @@ import {
   Zap,
   AlertCircle
 } from "lucide-react";
-import { userAPI, paymentAPI } from "../../utils/api";
+import { userAPI, paymentAPI, settingsAPI } from "../../utils/api";
 
 const PayoutNow = () => {
   const { getUserId, getUserBalance } = useAuth();
@@ -25,11 +25,24 @@ const PayoutNow = () => {
   const [accountName, setAccountName] = useState("");
   const [accountNumber, setAccountNumber] = useState("");
   const [ifsc, setIfsc] = useState("");
+  const [bankName, setBankName] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [successMessage, setSuccessMessage] = useState("");
 
-  const withdrawalFee = 0.02; // Flat Commission fee
+  // Payment settings from admin
+  const [paymentSettings, setPaymentSettings] = useState({
+    commissionRate: 2,
+    minWithdrawal: 50,
+    maxWithdrawal: 500000
+  });
+
+  // Calculate fees dynamically
+  const numAmount = Number(amount) || 0;
+  const platformFee = (numAmount * paymentSettings.commissionRate) / 100;
+  const totalDeduction = numAmount + platformFee;
+  const withdrawable = Math.max(0, Math.floor(balance / (1 + paymentSettings.commissionRate / 100)));
+  const remainingAfter = balance - totalDeduction;
 
   const fetchBalance = async () => {
     try {
@@ -48,33 +61,64 @@ const PayoutNow = () => {
     }
   };
 
+  // Fetch Payment Settings from Admin
+  const fetchPaymentSettings = async () => {
+    try {
+      const { data } = await settingsAPI.getPayment();
+      if (data) {
+        setPaymentSettings({
+          commissionRate: data.commissionRate || 2,
+          minWithdrawal: data.minWithdrawal || 50,
+          maxWithdrawal: data.maxWithdrawal || 500000
+        });
+      }
+    } catch (err) {
+      console.log("Using default payment settings");
+    }
+  };
+
   useEffect(() => {
     if (userId) {
       fetchBalance();
     } else {
       setBalance(getUserBalance());
     }
+    fetchPaymentSettings();
   }, [userId]);
+
+  // Handle amount input - no leading zeros
+  const handleAmountChange = (e) => {
+    let value = e.target.value;
+    // Remove leading zeros
+    value = value.replace(/^0+/, '');
+    // Only allow numbers
+    if (value === '' || /^\d+$/.test(value)) {
+      setAmount(value);
+    }
+  };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError("");
     setSuccessMessage("");
 
-    const numAmount = Number(amount);
-
     if (!amount || numAmount <= 0) {
       setError("Please enter a valid amount");
       return;
     }
 
-    if (numAmount < 50) {
-      setError("Minimum withdrawal amount is ₹50");
+    if (numAmount < paymentSettings.minWithdrawal) {
+      setError(`Minimum payout amount is ₹${paymentSettings.minWithdrawal}`);
       return;
     }
 
-    if (numAmount + withdrawalFee > balance) {
-      setError(`Insufficient balance. You have ₹${balance.toFixed(2)}, need ₹${(numAmount + withdrawalFee).toFixed(2)}`);
+    if (numAmount > paymentSettings.maxWithdrawal) {
+      setError(`Maximum payout amount is ₹${paymentSettings.maxWithdrawal.toLocaleString()}`);
+      return;
+    }
+
+    if (totalDeduction > balance) {
+      setError(`Insufficient balance. You have ₹${balance.toFixed(2)}, need ₹${totalDeduction.toFixed(2)}`);
       return;
     }
 
@@ -93,9 +137,12 @@ const PayoutNow = () => {
       const response = await paymentAPI.withdraw({
         userId,
         amount: numAmount,
+        platformFee: platformFee,
+        totalDeduction: totalDeduction,
         accountName,
         accountNumber,
         ifsc: ifsc.toUpperCase(),
+        bankName,
       });
 
       setSuccessMessage("✓ Payout request submitted successfully! Awaiting admin approval.");
@@ -105,6 +152,7 @@ const PayoutNow = () => {
       setAccountName("");
       setAccountNumber("");
       setIfsc("");
+      setBankName("");
 
       setTimeout(() => {
         fetchBalance();
@@ -119,14 +167,8 @@ const PayoutNow = () => {
     }
   };
 
-  // Safe calculation for UI - REAL-TIME UPDATES
-  const numAmount = amount ? Number(amount) : 0;
-  const withdrawable = Math.max(0, balance - withdrawalFee);
-  const totalDeduction = numAmount + withdrawalFee;
-  const remainingAfter = balance - totalDeduction;
-
   const steps = [
-    { id: 1, label: "Amount", icon: Banknote, active: numAmount >= 50 },
+    { id: 1, label: "Amount", icon: Banknote, active: numAmount >= paymentSettings.minWithdrawal },
     { id: 2, label: "Beneficiary", icon: CreditCard, active: accountNumber.length > 5 },
     { id: 3, label: "Settle", icon: SendHorizontal, active: false },
   ];
@@ -193,11 +235,13 @@ const PayoutNow = () => {
             {/* Amount Input */}
             <div className="space-y-4">
               <div className="flex justify-between items-center">
-                <label className="text-xs font-black text-slate-400 uppercase tracking-widest ml-1">Payout Amount</label>
-                {balance > 50 && (
+                <label className="text-xs font-black text-slate-400 uppercase tracking-widest ml-1">
+                  Payout Amount <span className="text-slate-300">(Min: ₹{paymentSettings.minWithdrawal})</span>
+                </label>
+                {balance > paymentSettings.minWithdrawal && (
                   <button
                     type="button"
-                    onClick={() => setAmount(withdrawable.toFixed(2))}
+                    onClick={() => setAmount(withdrawable.toString())}
                     className="text-[10px] font-black text-indigo-600 hover:text-indigo-800 uppercase tracking-tighter"
                   >
                     Withdraw Max
@@ -209,17 +253,23 @@ const PayoutNow = () => {
                   <IndianRupee className="h-8 w-8 text-slate-300 group-focus-within:text-indigo-600 transition-colors" />
                 </div>
                 <input
-                  type="number"
+                  type="text"
+                  inputMode="numeric"
                   value={amount}
-                  onChange={(e) => setAmount(e.target.value)}
-                  placeholder="0.00"
+                  onChange={handleAmountChange}
+                  placeholder="0"
                   className="block w-full pl-16 pr-6 py-8 bg-slate-50/50 border-2 border-slate-100 rounded-[2rem] text-4xl font-black text-slate-800 focus:ring-0 focus:border-indigo-500 focus:bg-white transition-all outline-none"
                   required
                 />
               </div>
+              {numAmount > 0 && numAmount < paymentSettings.minWithdrawal && (
+                <p className="text-xs text-amber-600 font-medium px-2">
+                  ⚠️ Minimum amount is ₹{paymentSettings.minWithdrawal}
+                </p>
+              )}
               <div className="flex items-center gap-2 text-slate-400">
                 <Zap className="w-3 h-3 fill-slate-400" />
-                <p className="text-[10px] font-bold uppercase tracking-tighter">Min Settlement: ₹50.00</p>
+                <p className="text-[10px] font-bold uppercase tracking-tighter">Min: ₹{paymentSettings.minWithdrawal} | Max: ₹{paymentSettings.maxWithdrawal.toLocaleString()}</p>
               </div>
             </div>
 
@@ -260,12 +310,22 @@ const PayoutNow = () => {
                     required
                   />
                 </div>
+                <div className="relative group md:col-span-2">
+                  <Building2 className="absolute left-5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 group-focus-within:text-indigo-500 transition-colors" />
+                  <input
+                    type="text"
+                    placeholder="Bank Name (Optional)"
+                    value={bankName}
+                    onChange={(e) => setBankName(e.target.value)}
+                    className="w-full pl-12 pr-4 py-5 bg-slate-50 border border-slate-100 rounded-2xl focus:bg-white focus:border-indigo-500 outline-none transition-all text-sm font-bold text-slate-700 placeholder:text-slate-300"
+                  />
+                </div>
               </div>
             </div>
 
             <button
               type="submit"
-              disabled={loading || !amount}
+              disabled={loading || !amount || numAmount < paymentSettings.minWithdrawal}
               className="w-full bg-slate-900 hover:bg-black disabled:bg-slate-100 disabled:text-slate-400 text-white py-6 rounded-[2rem] font-black text-xl shadow-2xl transition-all flex items-center justify-center gap-4 active:scale-[0.98]"
             >
               {loading ? (
@@ -301,22 +361,26 @@ const PayoutNow = () => {
                 {/* Breakdown */}
                 <div className="bg-white/5 p-6 rounded-[2rem] border border-white/5 space-y-3 backdrop-blur-sm">
                   <div className="flex justify-between text-[11px] font-bold text-slate-400 uppercase">
-                    <span>Requested</span>
-                    <span className="text-white">₹{Number(amount || 0).toFixed(2)}</span>
+                    <span>Payout Amount</span>
+                    <span className="text-white">₹{numAmount.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</span>
                   </div>
                   <div className="flex justify-between text-[11px] font-bold text-rose-400 uppercase">
-                    <span>Admin Fee</span>
-                    <span>+ ₹{withdrawalFee.toFixed(2)}</span>
+                    <span>Platform Fee ({paymentSettings.commissionRate}%)</span>
+                    <span>+ ₹{platformFee.toFixed(2)}</span>
                   </div>
                   <div className="h-px bg-white/10 my-2"></div>
+                  <div className="flex justify-between text-[11px] font-bold text-emerald-300 uppercase">
+                    <span>You'll Receive</span>
+                    <span>₹{numAmount.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</span>
+                  </div>
                   <div className="flex justify-between items-center text-sm font-black">
                     <span className="text-indigo-400">Total Deduction</span>
-                    <span className="text-xl">₹{totalDeduction.toFixed(2)}</span>
+                    <span className="text-xl">₹{totalDeduction.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</span>
                   </div>
                   {numAmount > 0 && (
                     <div className="flex justify-between items-center text-[11px] font-bold text-emerald-300 uppercase pt-2 border-t border-white/5">
                       <span>Remaining Balance</span>
-                      <span className="text-lg font-black">₹{remainingAfter.toFixed(2)}</span>
+                      <span className="text-lg font-black">₹{remainingAfter.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</span>
                     </div>
                   )}
                 </div>

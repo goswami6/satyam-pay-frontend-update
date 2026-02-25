@@ -24,6 +24,10 @@ const BulkPayoutManagement = () => {
   const [selectedPayout, setSelectedPayout] = useState(null);
   const [showModal, setShowModal] = useState(false);
 
+  // Pagination state
+  const [currentPage, setCurrentPage] = useState(1);
+  const [itemsPerPage, setItemsPerPage] = useState(15);
+
   // ✅ Fetch Payouts
   const fetchPayouts = useCallback(async () => {
     try {
@@ -140,6 +144,38 @@ const BulkPayoutManagement = () => {
   // ✅ Safe Array Handling
   const payoutsArray = Array.isArray(payouts) ? payouts : [];
 
+  // Pagination logic
+  const totalPages = Math.ceil(payoutsArray.length / itemsPerPage);
+  const startIndex = (currentPage - 1) * itemsPerPage;
+  const endIndex = startIndex + itemsPerPage;
+  const paginatedPayouts = payoutsArray.slice(startIndex, endIndex);
+
+  // Generate page numbers
+  const getPageNumbers = () => {
+    const pages = [];
+    const maxVisiblePages = 5;
+    if (totalPages <= maxVisiblePages) {
+      for (let i = 1; i <= totalPages; i++) pages.push(i);
+    } else {
+      if (currentPage <= 3) {
+        for (let i = 1; i <= 4; i++) pages.push(i);
+        pages.push('...');
+        pages.push(totalPages);
+      } else if (currentPage >= totalPages - 2) {
+        pages.push(1);
+        pages.push('...');
+        for (let i = totalPages - 3; i <= totalPages; i++) pages.push(i);
+      } else {
+        pages.push(1);
+        pages.push('...');
+        for (let i = currentPage - 1; i <= currentPage + 1; i++) pages.push(i);
+        pages.push('...');
+        pages.push(totalPages);
+      }
+    }
+    return pages;
+  };
+
   const totalPayouts = payoutsArray.length;
   const pendingPayouts = payoutsArray.filter(p => p?.status === "Pending").length;
   const approvedPayouts = payoutsArray.filter(p => p?.status === "Approved").length;
@@ -219,7 +255,7 @@ const BulkPayoutManagement = () => {
             </thead>
 
             <tbody>
-              {payoutsArray.map((payout) => (
+              {paginatedPayouts.map((payout) => (
                 <tr key={payout._id} className="border-t hover:bg-gray-50 transition-colors">
 
                   <td className="p-4">
@@ -323,6 +359,64 @@ const BulkPayoutManagement = () => {
               ))}
             </tbody>
           </table>
+        )}
+
+        {/* Pagination Footer */}
+        {payoutsArray.length > 0 && (
+          <div className="px-4 py-3 border-t bg-gray-50">
+            <div className="flex flex-col sm:flex-row justify-between items-center gap-4">
+              <div className="flex items-center gap-2 text-sm text-gray-600">
+                <span>Show</span>
+                <select
+                  value={itemsPerPage}
+                  onChange={(e) => {
+                    setItemsPerPage(Number(e.target.value));
+                    setCurrentPage(1);
+                  }}
+                  className="px-2 py-1 border rounded-lg bg-white"
+                >
+                  <option value={10}>10</option>
+                  <option value={15}>15</option>
+                  <option value={25}>25</option>
+                  <option value={50}>50</option>
+                </select>
+                <span>entries</span>
+                <span className="mx-2 text-gray-300">|</span>
+                <span>Showing <strong>{startIndex + 1}</strong> to <strong>{Math.min(endIndex, payoutsArray.length)}</strong> of <strong>{payoutsArray.length}</strong></span>
+              </div>
+              {totalPages > 1 && (
+                <div className="flex items-center gap-1">
+                  <button
+                    onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
+                    disabled={currentPage === 1}
+                    className={`px-3 py-1.5 text-sm rounded-lg border ${currentPage === 1 ? 'bg-gray-100 text-gray-400 cursor-not-allowed' : 'bg-white text-gray-700 hover:bg-gray-50'}`}
+                  >
+                    Previous
+                  </button>
+                  {getPageNumbers().map((page, index) => (
+                    page === '...' ? (
+                      <span key={`ellipsis-${index}`} className="px-2 py-1 text-gray-500">...</span>
+                    ) : (
+                      <button
+                        key={page}
+                        onClick={() => setCurrentPage(page)}
+                        className={`min-w-[36px] px-3 py-1.5 text-sm rounded-lg border ${currentPage === page ? 'bg-blue-600 text-white border-blue-600' : 'bg-white text-gray-700 hover:bg-gray-50'}`}
+                      >
+                        {page}
+                      </button>
+                    )
+                  ))}
+                  <button
+                    onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
+                    disabled={currentPage === totalPages}
+                    className={`px-3 py-1.5 text-sm rounded-lg border ${currentPage === totalPages ? 'bg-gray-100 text-gray-400 cursor-not-allowed' : 'bg-white text-gray-700 hover:bg-gray-50'}`}
+                  >
+                    Next
+                  </button>
+                </div>
+              )}
+            </div>
+          </div>
         )}
       </div>
 

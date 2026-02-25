@@ -137,31 +137,64 @@ const UserDashboard = () => {
                 <tr>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Transaction ID</th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Description</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Amount</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
+                  <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">Category</th>
+                  <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Amount</th>
+                  <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Fee</th>
+                  <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Total</th>
+                  <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Date</th>
                 </tr>
               </thead>
               <tbody className="bg-white divide-y divide-gray-100">
                 {recentTransactions.map((txn) => (
-                  <tr key={txn.id} className="hover:bg-gray-50">
-                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
-                      {txn.id?.slice(0, 12)}...
+                  <tr key={txn.id || txn._id} className="hover:bg-gray-50">
+                    <td className="px-6 py-4 whitespace-nowrap text-sm">
+                      <span className="font-mono text-xs text-blue-600 bg-blue-50 px-2 py-1 rounded">
+                        {(txn.transactionId || txn.id || txn._id)?.slice(-10)}
+                      </span>
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700">{txn.description}</td>
-                    <td className={`px-6 py-4 whitespace-nowrap text-sm font-semibold ${txn.type === 'Credit' ? 'text-green-600' : 'text-red-600'
-                      }`}>
-                      {txn.type === 'Credit' ? '+' : '-'}₹{txn.amount?.toLocaleString("en-IN")}
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700 max-w-[150px] truncate" title={txn.description || txn.customerName || 'Transaction'}>
+                      {txn.description || txn.customerName || 'Transaction'}
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <span className={`px-2 py-1 text-xs font-medium rounded-full ${txn.status === 'Completed' ? 'bg-green-100 text-green-700' :
-                        txn.status === 'Pending' ? 'bg-yellow-100 text-yellow-700' :
-                          'bg-red-100 text-red-700'
+                    <td className="px-6 py-4 whitespace-nowrap text-center">
+                      <span className={`inline-block px-2 py-1 text-xs font-medium rounded capitalize ${txn.category === 'payout' ? 'bg-blue-100 text-blue-700' :
+                          txn.category === 'withdrawal' ? 'bg-orange-100 text-orange-700' :
+                            txn.category === 'deposit' ? 'bg-green-100 text-green-700' :
+                              'bg-gray-100 text-gray-700'
+                        }`}>
+                        {txn.category || 'other'}
+                      </span>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-right">
+                      <span className={`font-semibold ${txn.type === 'Credit' ? 'text-green-600' : 'text-gray-700'}`}>
+                        ₹{Number(txn.amount || 0).toLocaleString("en-IN", { minimumFractionDigits: 2 })}
+                      </span>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-right">
+                      {txn.fee && Number(txn.fee) > 0 ? (
+                        <span className="font-medium text-red-500">
+                          -₹{Number(txn.fee).toLocaleString("en-IN", { minimumFractionDigits: 2 })}
+                        </span>
+                      ) : (
+                        <span className="text-gray-400">-</span>
+                      )}
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-right">
+                      <span className={`font-bold ${txn.type === 'Credit' ? 'text-green-600' : 'text-red-600'}`}>
+                        {txn.type === 'Credit' ? '+' : '-'}₹{Number(txn.netAmount || txn.amount || 0).toLocaleString("en-IN", { minimumFractionDigits: 2 })}
+                      </span>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-center">
+                      <span className={`px-2 py-1 text-xs font-medium rounded-full ${txn.status === 'Completed' || txn.status === 'Success' ? 'bg-green-100 text-green-700' :
+                          txn.status === 'Pending' ? 'bg-yellow-100 text-yellow-700' :
+                            'bg-red-100 text-red-700'
                         }`}>
                         {txn.status}
                       </span>
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{formatDate(txn.date)}</td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                      {formatDate(txn.date || txn.createdAt)}
+                    </td>
                   </tr>
                 ))}
               </tbody>

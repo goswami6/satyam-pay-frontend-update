@@ -40,7 +40,12 @@ const AdminPayoutManagement = () => {
       setTimeout(() => setSuccessMessage(""), 3000);
       fetchWithdrawals();
     } catch (error) {
-      setError(error.response?.data?.message || "Approval failed");
+      const errorData = error.response?.data;
+      if (errorData?.currentBalance !== undefined) {
+        setError(`Insufficient Balance! User has ₹${errorData.currentBalance?.toFixed(2)} but requires ₹${errorData.required?.toFixed(2)}. Shortfall: ₹${errorData.shortfall?.toFixed(2)}`);
+      } else {
+        setError(errorData?.message || "Approval failed");
+      }
     } finally {
       setActionLoading(null);
     }

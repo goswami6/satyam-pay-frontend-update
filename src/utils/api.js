@@ -61,6 +61,9 @@ export const userAPI = {
   // Profile
   getProfile: (userId) => api.get(`/users/profile/${userId}`),
   updateProfile: (userId, data) => api.put(`/users/profile/${userId}`, data),
+  uploadProfileImage: (userId, formData) => api.post(`/users/profile-image/${userId}`, formData, {
+    headers: { "Content-Type": "multipart/form-data" }
+  }),
 
   // Balance
   getBalance: (userId) => api.get(`/users/balance/${userId}`),
@@ -265,7 +268,7 @@ export const payoutRequestAPI = {
   getMyRequests: (params) => api.get("/payout-requests/my-requests", { params }),
   getRequestById: (id) => api.get(`/payout-requests/request/${id}`),
   cancelRequest: (id) => api.put(`/payout-requests/cancel/${id}`),
-  
+
   // Admin APIs
   getAllRequests: (params) => api.get("/payout-requests/admin/all", { params }),
   approveRequest: (id, data) => api.put(`/payout-requests/admin/approve/${id}`, data),
@@ -301,19 +304,19 @@ export const settingsAPI = {
 export const enquiryAPI = {
   // Public - Submit enquiry
   submit: (data) => api.post("/enquiry/submit", data),
-  
+
   // Admin - Get all enquiries
   getAll: (params = {}) => api.get("/enquiry", { params }),
-  
+
   // Admin - Get single enquiry
   getById: (id) => api.get(`/enquiry/${id}`),
-  
+
   // Admin - Update enquiry status
   update: (id, data) => api.put(`/enquiry/${id}`, data),
-  
+
   // Admin - Delete enquiry
   delete: (id) => api.delete(`/enquiry/${id}`),
-  
+
   // Admin - Bulk delete
   bulkDelete: (ids) => api.post("/enquiry/bulk-delete", { ids }),
 };

@@ -1,12 +1,23 @@
 import React, { useState } from 'react';
-import { Menu, X, Globe, LogOut, MessageSquare } from 'lucide-react';
-import { Link } from 'react-router-dom';
+import { Menu, X, Globe, LogOut, MessageSquare, LayoutDashboard } from 'lucide-react';
+import { Link, useNavigate } from 'react-router-dom';
 import MegaMenu from './MegaMenu';
 import { motion, AnimatePresence } from 'framer-motion';
+import { useAuth } from '../context/AuthContext';
 
-const Navbar = ({ isLoggedIn, onLogout }) => {
+const Navbar = () => {
   const [isOpen, setIsOpen] = useState(false);
   const [activeMega, setActiveMega] = useState(null);
+  const { user, logout, getUserId } = useAuth();
+  const navigate = useNavigate();
+
+  // Check if user is logged in
+  const isLoggedIn = !!(user || getUserId() || sessionStorage.getItem("userId"));
+
+  const handleLogout = () => {
+    logout();
+    navigate('/');
+  };
 
   const menuItems = [
     { label: 'Payments', id: 'payments' },
@@ -64,7 +75,7 @@ const Navbar = ({ isLoggedIn, onLogout }) => {
 
             {/* Right Section */}
             <div className="hidden lg:flex items-center gap-2 flex-shrink-0">
-              <Link 
+              <Link
                 to="/contact"
                 className="px-3 py-2 text-gray-700 font-medium hover:text-blue-600 transition-colors flex items-center gap-1.5 whitespace-nowrap"
               >
@@ -78,11 +89,12 @@ const Navbar = ({ isLoggedIn, onLogout }) => {
 
               {isLoggedIn ? (
                 <>
-                  <Link to="/dashboard" className="btn-primary whitespace-nowrap">
+                  <Link to="/user" className="btn-primary whitespace-nowrap flex items-center gap-2">
+                    <LayoutDashboard size={18} />
                     Dashboard
                   </Link>
-                  <button onClick={onLogout} className="p-2 hover:bg-gray-100 rounded-lg transition-colors flex-shrink-0">
-                    <LogOut size={20} className="text-gray-600" />
+                  <button onClick={handleLogout} className="p-2 hover:bg-red-50 rounded-lg transition-colors flex-shrink-0 group" title="Logout">
+                    <LogOut size={20} className="text-gray-600 group-hover:text-red-600" />
                   </button>
                 </>
               ) : (
@@ -90,7 +102,7 @@ const Navbar = ({ isLoggedIn, onLogout }) => {
                   <Link to="/login" className="btn-secondary whitespace-nowrap">
                     Log in
                   </Link>
-                  <Link to="/signup" className="btn-primary whitespace-nowrap">
+                  <Link to="/register" className="btn-primary whitespace-nowrap">
                     Sign Up
                   </Link>
                 </>
@@ -146,25 +158,31 @@ const Navbar = ({ isLoggedIn, onLogout }) => {
               <div className="border-t mt-3 pt-4 flex flex-col gap-3">
                 {isLoggedIn ? (
                   <>
-                    <Link to="/dashboard" className="btn-primary w-full text-center">
+                    <Link
+                      to="/user"
+                      className="btn-primary w-full text-center flex items-center justify-center gap-2"
+                      onClick={() => setIsOpen(false)}
+                    >
+                      <LayoutDashboard size={18} />
                       Dashboard
                     </Link>
                     <button
                       onClick={() => {
-                        onLogout();
+                        handleLogout();
                         setIsOpen(false);
                       }}
-                      className="btn-secondary w-full text-center"
+                      className="btn-secondary w-full text-center flex items-center justify-center gap-2"
                     >
+                      <LogOut size={18} />
                       Log out
                     </button>
                   </>
                 ) : (
                   <>
-                    <Link to="/login" className="btn-secondary w-full text-center">
+                    <Link to="/login" className="btn-secondary w-full text-center" onClick={() => setIsOpen(false)}>
                       Log in
                     </Link>
-                    <Link to="/signup" className="btn-primary w-full text-center">
+                    <Link to="/signup" className="btn-primary w-full text-center" onClick={() => setIsOpen(false)}>
                       Sign Up
                     </Link>
                   </>

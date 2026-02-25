@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback, useRef } from "react";
 import {
   User,
   Mail,
@@ -13,14 +13,18 @@ import {
   ArrowUpRight,
   AlertCircle,
   CheckCircle,
-  Loader
+  Loader,
+  RefreshCw
 } from "lucide-react";
 import { useAuth } from "../../context/AuthContext";
 import { userAPI } from "../../utils/api";
 
+const API_BASE_URL = import.meta.env.VITE_API_URL || "http://localhost:5000";
+
 const UserProfile = () => {
-  const { user, getUserId, getAuthHeader } = useAuth();
-  const userId = getUserId();
+  const { getUserId } = useAuth();
+  const userId = getUserId() || sessionStorage.getItem("userId");
+  const fileInputRef = useRef(null);
 
   const [formData, setFormData] = useState({
     fullName: "",
@@ -29,45 +33,110 @@ const UserProfile = () => {
     companyName: "",
     companyType: "",
     balance: 0,
+    role: "user",
+    profileImage: "",
     kyc: { status: "not_submitted" }
   });
 
   const [loading, setLoading] = useState(false);
   const [fetchLoading, setFetchLoading] = useState(true);
+  const [imageUploading, setImageUploading] = useState(false);
   const [error, setError] = useState("");
   const [successMessage, setSuccessMessage] = useState("");
 
-  const fetchProfile = async () => {
+  const fetchProfile = useCallback(async () => {
     try {
       setFetchLoading(true);
       setError("");
 
       // Validate userId
-      if (!userId || userId === "null") {
+      if (!userId || userId === "null" || userId === "undefined") {
         setError("User ID not found. Please log in again.");
         setFetchLoading(false);
         return;
       }
 
       const res = await userAPI.getProfile(userId);
-      setFormData(res.data);
+      if (res.data) {
+        setFormData({
+          fullName: res.data.fullName || "",
+          email: res.data.email || "",
+          phone: res.data.phone || "",
+          companyName: res.data.companyName || "",
+          companyType: res.data.companyType || "",
+          balance: res.data.balance || 0,
+          role: res.data.role || "user",
+          profileImage: res.data.profileImage || "",
+          kyc: res.data.kyc || { status: "not_submitted" }
+        });
+      }
     } catch (error) {
       console.error("Fetch Error:", error);
       setError(error.response?.data?.message || "Failed to load profile");
     } finally {
       setFetchLoading(false);
     }
-  };
+  }, [userId]);
 
   useEffect(() => {
-    fetchProfile();
-  }, []);
+    if (userId) {
+      fetchProfile();
+    }
+  }, [userId, fetchProfile]);
 
   const handleChange = (e) => {
     setFormData({
       ...formData,
       [e.target.name]: e.target.value,
     });
+  };
+
+  // Handle profile image upload
+  const handleImageUpload = async (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+
+    // Validate file type
+    const allowedTypes = ['image/jpeg', 'image/png', 'image/jpg', 'image/webp'];
+    if (!allowedTypes.includes(file.type)) {
+      setError("Please select a valid image (JPG, PNG, or WebP)");
+      return;
+    }
+
+    // Validate file size (max 5MB)
+    if (file.size > 5 * 1024 * 1024) {
+      setError("Image size should be less than 5MB");
+      return;
+    }
+
+    try {
+      setImageUploading(true);
+      setError("");
+
+      const formDataUpload = new FormData();
+      formDataUpload.append("profileImage", file);
+
+      const res = await userAPI.uploadProfileImage(userId, formDataUpload);
+
+      if (res.data?.profileImage) {
+        setFormData(prev => ({
+          ...prev,
+          profileImage: res.data.profileImage
+        }));
+        setSuccessMessage("✓ Profile image updated!");
+        setTimeout(() => setSuccessMessage(""), 3000);
+      }
+    } catch (error) {
+      console.error("Image upload error:", error);
+      setError(error.response?.data?.message || "Failed to upload image");
+    } finally {
+      setImageUploading(false);
+    }
+  };
+
+  // Trigger file input click
+  const handleCameraClick = () => {
+    fileInputRef.current?.click();
   };
 
   const handleUpdate = async (e) => {
@@ -77,14 +146,29 @@ const UserProfile = () => {
       setError("");
       setSuccessMessage("");
 
-      if (!userId || userId === "null") {
+      if (!userId || userId === "null" || userId === "undefined") {
         setError("User ID not found. Please log in again.");
         return;
       }
 
-      const res = await userAPI.updateProfile(userId, formData);
+      const updateData = {
+        fullName: formData.fullName,
+        phone: formData.phone,
+        companyName: formData.companyName,
+        companyType: formData.companyType
+      };
+
+      const res = await userAPI.updateProfile(userId, updateData);
+      if (res.data) {
+        setFormData(prev => ({
+          ...prev,
+          fullName: res.data.fullName || prev.fullName,
+          phone: res.data.phone || prev.phone,
+          companyName: res.data.companyName || prev.companyName,
+          companyType: res.data.companyType || prev.companyType
+        }));
+      }
       setSuccessMessage("✓ Profile Updated Successfully!");
-      setFormData(res.data);
       setTimeout(() => setSuccessMessage(""), 3000);
     } catch (error) {
       setError(error.response?.data?.message || "Update Failed");
@@ -93,27 +177,43 @@ const UserProfile = () => {
     }
   };
 
+  // Format balance display
+  const formatBalance = (balance) => {
+    const num = Number(balance) || 0;
+    return num.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  };
+
   return (
     <div className="max-w-6xl mx-auto animate-in fade-in slide-in-from-bottom-4 duration-700 pb-10">
 
       {/* Header */}
-      <div className="mb-10 flex flex-col md:flex-row justify-between items-end gap-4">
+      <div className="mb-10 flex flex-col md:flex-row justify-between items-start md:items-end gap-4">
         <div>
           <h1 className="text-3xl font-black text-slate-900 tracking-tight">Account Settings</h1>
           <p className="text-slate-500 mt-1">Manage your professional identity and security preferences.</p>
         </div>
-        <div className={`flex items-center gap-2 px-4 py-2 rounded-2xl text-xs font-bold border ${formData.kyc?.status === 'approved'
-          ? 'bg-emerald-50 text-emerald-600 border-emerald-200'
-          : formData.kyc?.status === 'pending'
-            ? 'bg-yellow-50 text-yellow-600 border-yellow-200'
-            : formData.kyc?.status === 'rejected'
-              ? 'bg-red-50 text-red-600 border-red-200'
-              : 'bg-slate-100 text-slate-600 border-slate-200'
-          }`}>
-          <ShieldCheck className="w-4 h-4" />
-          {formData.kyc?.status === 'approved' ? 'KYC Verified' :
-            formData.kyc?.status === 'pending' ? 'KYC Pending' :
-              formData.kyc?.status === 'rejected' ? 'KYC Rejected' : 'KYC Not Submitted'}
+        <div className="flex items-center gap-3">
+          <button
+            onClick={fetchProfile}
+            disabled={fetchLoading}
+            className="flex items-center gap-2 px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-600 rounded-xl text-xs font-bold transition-colors disabled:opacity-50"
+          >
+            <RefreshCw className={`w-4 h-4 ${fetchLoading ? 'animate-spin' : ''}`} />
+            Refresh
+          </button>
+          <div className={`flex items-center gap-2 px-4 py-2 rounded-2xl text-xs font-bold border ${formData.kyc?.status === 'approved'
+            ? 'bg-emerald-50 text-emerald-600 border-emerald-200'
+            : formData.kyc?.status === 'pending'
+              ? 'bg-yellow-50 text-yellow-600 border-yellow-200'
+              : formData.kyc?.status === 'rejected'
+                ? 'bg-red-50 text-red-600 border-red-200'
+                : 'bg-slate-100 text-slate-600 border-slate-200'
+            }`}>
+            <ShieldCheck className="w-4 h-4" />
+            {formData.kyc?.status === 'approved' ? 'KYC Verified' :
+              formData.kyc?.status === 'pending' ? 'KYC Pending' :
+                formData.kyc?.status === 'rejected' ? 'KYC Rejected' : 'KYC Not Submitted'}
+          </div>
         </div>
       </div>
 
@@ -150,12 +250,45 @@ const UserProfile = () => {
               <div className="relative pt-8">
                 <div className="relative inline-block">
                   <div className="w-28 h-28 bg-white rounded-3xl p-1 shadow-xl mx-auto relative z-10 overflow-hidden">
-                    <div className="w-full h-full bg-slate-100 rounded-[1.2rem] flex items-center justify-center">
+                    {formData.profileImage ? (
+                      <img
+                        src={`${API_BASE_URL}${formData.profileImage}`}
+                        alt="Profile"
+                        className="w-full h-full object-cover rounded-[1.2rem]"
+                        onError={(e) => {
+                          e.target.style.display = 'none';
+                          e.target.nextSibling.style.display = 'flex';
+                        }}
+                      />
+                    ) : null}
+                    <div
+                      className={`w-full h-full bg-slate-100 rounded-[1.2rem] items-center justify-center ${formData.profileImage ? 'hidden' : 'flex'}`}
+                    >
                       <User className="w-12 h-12 text-slate-300" />
                     </div>
                   </div>
-                  <button className="absolute bottom-0 right-0 p-2 bg-indigo-600 text-white rounded-xl shadow-lg hover:scale-110 transition-transform z-20">
-                    <Camera className="w-4 h-4" />
+
+                  {/* Hidden File Input */}
+                  <input
+                    type="file"
+                    ref={fileInputRef}
+                    onChange={handleImageUpload}
+                    accept="image/jpeg,image/png,image/jpg,image/webp"
+                    className="hidden"
+                  />
+
+                  {/* Camera Button */}
+                  <button
+                    type="button"
+                    onClick={handleCameraClick}
+                    disabled={imageUploading}
+                    className="absolute bottom-0 right-0 p-2 bg-indigo-600 text-white rounded-xl shadow-lg hover:scale-110 transition-transform z-20 disabled:opacity-50 disabled:hover:scale-100"
+                  >
+                    {imageUploading ? (
+                      <Loader className="w-4 h-4 animate-spin" />
+                    ) : (
+                      <Camera className="w-4 h-4" />
+                    )}
                   </button>
                 </div>
 
@@ -183,11 +316,23 @@ const UserProfile = () => {
             {/* Balance Card */}
             <div className="bg-slate-900 p-8 rounded-[2.5rem] shadow-2xl relative overflow-hidden text-white group">
               <div className="absolute top-0 right-0 w-32 h-32 bg-indigo-500/10 rounded-full -mr-16 -mt-16 blur-3xl"></div>
-              <Wallet className="w-8 h-8 text-indigo-500 mb-6" />
+              <div className="flex items-center justify-between mb-6">
+                <Wallet className="w-8 h-8 text-indigo-500" />
+                <button
+                  onClick={fetchProfile}
+                  className="p-2 hover:bg-white/10 rounded-xl transition-colors"
+                  title="Refresh Balance"
+                >
+                  <RefreshCw className={`w-4 h-4 text-slate-400 ${fetchLoading ? 'animate-spin' : ''}`} />
+                </button>
+              </div>
               <p className="text-slate-500 text-[10px] font-black uppercase tracking-[0.2em]">Wallet Balance</p>
-              <h2 className="text-4xl font-black mt-2 tracking-tighter italic">
-                ₹{formData.balance?.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+              <h2 className={`text-4xl font-black mt-2 tracking-tighter italic ${Number(formData.balance) < 0 ? 'text-red-400' : 'text-white'}`}>
+                ₹{formatBalance(formData.balance)}
               </h2>
+              {Number(formData.balance) < 0 && (
+                <p className="text-red-400 text-xs mt-2">⚠️ Negative balance detected</p>
+              )}
               <button className="mt-6 w-full py-3 bg-white/5 hover:bg-white/10 border border-white/10 rounded-2xl text-xs font-bold transition-all flex items-center justify-center gap-2">
                 View Ledger <ArrowUpRight className="w-3 h-3" />
               </button>

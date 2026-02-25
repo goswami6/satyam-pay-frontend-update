@@ -84,7 +84,12 @@ const RequestMoney = () => {
         userId,
       });
 
-      setSuccessMessage("Payment request sent successfully! The recipient will receive an email with the payment link.");
+      const data = response.data;
+      if (data.emailSent) {
+        setSuccessMessage("Payment request sent successfully! The recipient will receive an email with the payment link.");
+      } else {
+        setSuccessMessage("Payment link generated but email could not be sent. Please share the link manually.");
+      }
 
       // Reset form
       setFormData({ name: "", email: "", amount: "", description: "", date: "" });

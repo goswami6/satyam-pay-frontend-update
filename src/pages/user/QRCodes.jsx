@@ -473,7 +473,7 @@ const UserQRCodes = () => {
         {/* Selected QR Preview */}
         <div className="lg:col-span-1">
           {selectedQR ? (
-            <div className="bg-white rounded-2xl border border-slate-100 p-6 sticky top-6 relative overflow-hidden">
+            <div className="bg-white rounded-2xl border border-slate-100 p-6 sticky top-6 overflow-hidden">
               <div className="flex justify-between items-start mb-4">
                 <div>
                   <h3 className="font-bold text-slate-900">{selectedQR.name}</h3>

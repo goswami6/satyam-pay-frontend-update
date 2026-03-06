@@ -4,6 +4,7 @@ import { Eye, EyeOff, Mail, Lock, Shield, User as UserIcon } from "lucide-react"
 import { Navigate, useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 import { authAPI } from "../utils/api";
+import { useSettings } from "../hooks/useSettings";
 
 const Login = () => {
   const [showPassword, setShowPassword] = useState(false);
@@ -15,6 +16,7 @@ const Login = () => {
 
   const { login, isAuthenticated, role } = useAuth();
   const navigate = useNavigate();
+  const { settings } = useSettings();
 
   // ✅ If already logged in → redirect
   if (isAuthenticated) {
@@ -97,12 +99,12 @@ const Login = () => {
         <div className="text-center space-y-2">
           <div className="flex justify-center mb-4">
             <div className="w-12 h-12 bg-gradient-to-r from-blue-600 to-purple-600 rounded-lg flex items-center justify-center text-white font-bold text-lg">
-              SP
+              {settings.websiteName?.charAt(0) || 'S'}
             </div>
           </div>
           <h1 className="text-3xl font-bold text-gray-900">Welcome Back</h1>
           <p className="text-gray-600">
-            Log in to your SatyamPay account
+            Log in to your {settings.websiteName} account
           </p>
         </div>
 

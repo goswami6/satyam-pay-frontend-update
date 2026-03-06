@@ -198,10 +198,10 @@ const Contact = () => {
                     />
                   ) : (
                     <div className="w-12 h-12 bg-gradient-to-r from-blue-600 to-purple-600 rounded-xl flex items-center justify-center text-white font-bold text-xl shadow-md">
-                      {settings?.websiteName?.charAt(0) || 'RP'}
+                      {settings?.websiteName?.charAt(0) || 'SP'}
                     </div>
                   )}
-                  <h2 className="text-2xl font-bold text-gray-900">{settings?.websiteName || 'Rabbit Pay'}</h2>
+                  <h2 className="text-2xl font-bold text-gray-900">{settings?.websiteName || 'Satyam Pay'}</h2>
                 </div>
                 <p className="text-gray-600 leading-relaxed mb-6">
                   {settings?.websiteDescription || "India's leading fintech platform powering payments and banking for 5M+ businesses. We're here to help you grow and scale your business with our cutting-edge solutions."}
@@ -227,7 +227,7 @@ const Contact = () => {
 
                   {/* Email */}
                   <a
-                    href={`mailto:${settings?.websiteEmail || 'info@rabbitpay.in.net'}`}
+                    href={`mailto:${settings?.websiteEmail || 'info@satyampay.in'}`}
                     className="flex items-start gap-4 p-4 rounded-xl hover:bg-blue-50 transition-all group"
                   >
                     <div className="w-10 h-10 bg-purple-100 rounded-lg flex items-center justify-center flex-shrink-0 group-hover:bg-purple-200 transition-colors">
@@ -236,7 +236,7 @@ const Contact = () => {
                     <div>
                       <p className="text-sm font-semibold text-gray-500 mb-1">Email</p>
                       <p className="text-gray-900 font-medium group-hover:text-purple-600 transition-colors break-all">
-                        {settings?.websiteEmail || 'info@rabbitpay.in.net'}
+                        {settings?.websiteEmail || 'info@satyampay.in'}
                       </p>
                     </div>
                   </a>

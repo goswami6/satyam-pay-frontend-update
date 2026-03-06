@@ -1,9 +1,11 @@
 import React from 'react';
 import { Clock, CheckCircle, Mail, Phone } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
+import { useSettings } from '../../hooks/useSettings';
 
 const KYCPending = () => {
   const { user, logout } = useAuth();
+  const { settings } = useSettings();
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-amber-50 to-orange-100 flex items-center justify-center p-6">
@@ -68,8 +70,8 @@ const KYCPending = () => {
         {/* Support Info */}
         <p className="text-gray-500 text-sm mb-6">
           Need help? Contact us at{' '}
-          <a href="mailto:support@satyampay.com" className="text-indigo-600 hover:underline">
-            support@satyampay.com
+          <a href={`mailto:${settings.websiteEmail}`} className="text-indigo-600 hover:underline">
+            {settings.websiteEmail}
           </a>
         </p>
 

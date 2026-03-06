@@ -1,7 +1,8 @@
 import { useEffect, useState } from "react";
-import { Search, Download, AlertCircle, CheckCircle, Clock, Eye, X } from "lucide-react";
+import { Search, Download, AlertCircle, CheckCircle, Clock, Eye, X, Receipt, Send, Loader2, FileDown, Calendar } from "lucide-react";
 import { useAuth } from "../../context/AuthContext";
-import { transactionAPI } from "../../utils/api";
+import { transactionAPI, API_URL } from "../../utils/api";
+import API from "../../utils/api";
 
 const UserTransactions = () => {
   const { getUserId, getAuthHeader } = useAuth();
@@ -12,9 +13,13 @@ const UserTransactions = () => {
   const [statusFilter, setStatusFilter] = useState("All");
   const [typeFilter, setTypeFilter] = useState("All");
   const [categoryFilter, setCategoryFilter] = useState("All");
+  const [startDate, setStartDate] = useState("");
+  const [endDate, setEndDate] = useState("");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [selectedTxn, setSelectedTxn] = useState(null);
+  const [sendingReceipt, setSendingReceipt] = useState(false);
+  const [receiptToast, setReceiptToast] = useState(null);
 
   // Pagination state
   const [currentPage, setCurrentPage] = useState(1);
@@ -49,6 +54,70 @@ const UserTransactions = () => {
     }
   }, [userId]);
 
+  // Request receipt function
+  const requestReceipt = async (transactionId) => {
+    try {
+      setSendingReceipt(true);
+      const res = await API.post(`/transactions/receipt/send/${transactionId}`);
+      setReceiptToast({ message: res.data.message, type: 'success' });
+      fetchTransactions();
+      setTimeout(() => setReceiptToast(null), 4000);
+    } catch (error) {
+      setReceiptToast({
+        message: error.response?.data?.message || 'Failed to send receipt',
+        type: 'error'
+      });
+      setTimeout(() => setReceiptToast(null), 4000);
+    } finally {
+      setSendingReceipt(false);
+    }
+  };
+
+  // Download receipt function
+  const [downloadingReceipt, setDownloadingReceipt] = useState(null);
+
+  const downloadReceipt = async (transactionId) => {
+    try {
+      setDownloadingReceipt(transactionId);
+      const response = await fetch(`${API_URL}/transactions/receipt/download/${transactionId}`);
+
+      if (!response.ok) {
+        throw new Error('Failed to download receipt');
+      }
+
+      const blob = await response.blob();
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+
+      // Get filename from Content-Disposition header or use default
+      const contentDisposition = response.headers.get('Content-Disposition');
+      let filename = 'Receipt.pdf';
+      if (contentDisposition) {
+        const match = contentDisposition.match(/filename=([^;]+)/);
+        if (match) filename = match[1].replace(/"/g, '');
+      }
+
+      link.download = filename;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      window.URL.revokeObjectURL(url);
+
+      setReceiptToast({ message: 'Receipt downloaded successfully!', type: 'success' });
+      setTimeout(() => setReceiptToast(null), 3000);
+    } catch (error) {
+      console.error('Download error:', error);
+      setReceiptToast({
+        message: error.message || 'Failed to download receipt',
+        type: 'error'
+      });
+      setTimeout(() => setReceiptToast(null), 4000);
+    } finally {
+      setDownloadingReceipt(null);
+    }
+  };
+
   // 🔎 Filtering
   const filteredTransactions = transactions.filter((txn) => {
     const name = txn.customerName || txn.description || "";
@@ -67,7 +136,27 @@ const UserTransactions = () => {
     const matchesCategory =
       categoryFilter === "All" || txn.category === categoryFilter;
 
-    return matchesSearch && matchesStatus && matchesType && matchesCategory;
+    // Date filter - compare only date parts to avoid timezone issues
+    const matchesDateRange = (() => {
+      if (!startDate && !endDate) return true;
+
+      const txnDateStr = txn.createdAt || txn.date;
+      if (!txnDateStr) return true;
+
+      // Get date portion only (YYYY-MM-DD)
+      const txnDateOnly = new Date(txnDateStr).toISOString().split('T')[0];
+
+      if (startDate && endDate) {
+        return txnDateOnly >= startDate && txnDateOnly <= endDate;
+      } else if (startDate) {
+        return txnDateOnly >= startDate;
+      } else if (endDate) {
+        return txnDateOnly <= endDate;
+      }
+      return true;
+    })();
+
+    return matchesSearch && matchesStatus && matchesType && matchesCategory && matchesDateRange;
   });
 
   // Pagination logic
@@ -79,7 +168,7 @@ const UserTransactions = () => {
   // Reset to page 1 when filters change
   useEffect(() => {
     setCurrentPage(1);
-  }, [search, statusFilter, typeFilter, categoryFilter]);
+  }, [search, statusFilter, typeFilter, categoryFilter, startDate, endDate]);
 
   // Export to CSV function
   const handleExport = () => {
@@ -154,6 +243,16 @@ const UserTransactions = () => {
 
   return (
     <div className="space-y-6">
+      {/* Receipt Toast */}
+      {receiptToast && (
+        <div className={`fixed top-4 right-4 z-50 px-4 py-3 rounded-lg shadow-lg flex items-center gap-2 ${receiptToast.type === 'success' ? 'bg-green-500 text-white' : 'bg-red-500 text-white'
+          }`}>
+          {receiptToast.type === 'success' ? <CheckCircle size={18} /> : <X size={18} />}
+          <span>{receiptToast.message}</span>
+        </div>
+      )}
+
+
       {/* Header */}
       <div className="flex justify-between items-center">
         <div>
@@ -182,7 +281,7 @@ const UserTransactions = () => {
 
       {/* Filters */}
       <div className="bg-white rounded-xl shadow-sm border p-4">
-        <div className="grid md:grid-cols-4 gap-4">
+        <div className="grid md:grid-cols-4 gap-4 mb-4">
           <div className="relative">
             <Search
               className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"
@@ -231,25 +330,81 @@ const UserTransactions = () => {
             <option value="Failed">Failed</option>
           </select>
         </div>
+
+        {/* Date Filter Row */}
+        <div className="grid md:grid-cols-4 gap-4">
+          <div className="relative">
+            <Calendar
+              className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"
+              size={18}
+            />
+            <input
+              type="date"
+              value={startDate}
+              onChange={(e) => setStartDate(e.target.value)}
+              className="w-full pl-10 pr-4 py-2 border rounded-lg text-gray-600"
+              placeholder="From Date"
+            />
+          </div>
+
+          <div className="relative">
+            <Calendar
+              className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"
+              size={18}
+            />
+            <input
+              type="date"
+              value={endDate}
+              onChange={(e) => setEndDate(e.target.value)}
+              className="w-full pl-10 pr-4 py-2 border rounded-lg text-gray-600"
+              placeholder="To Date"
+            />
+          </div>
+
+          {(startDate || endDate) && (
+            <button
+              onClick={() => {
+                setStartDate("");
+                setEndDate("");
+              }}
+              className="px-4 py-2 bg-red-50 text-red-600 border border-red-200 rounded-lg hover:bg-red-100 transition-colors flex items-center justify-center gap-2"
+            >
+              <X size={16} />
+              Clear Date Filter
+            </button>
+          )}
+
+          {(startDate || endDate) && (
+            <div className="flex items-center text-sm text-gray-500">
+              <span className="bg-blue-50 text-blue-600 px-3 py-1 rounded-lg">
+                {startDate && endDate
+                  ? `${new Date(startDate).toLocaleDateString('en-IN')} - ${new Date(endDate).toLocaleDateString('en-IN')}`
+                  : startDate
+                    ? `From ${new Date(startDate).toLocaleDateString('en-IN')}`
+                    : `Till ${new Date(endDate).toLocaleDateString('en-IN')}`}
+              </span>
+            </div>
+          )}
+        </div>
       </div>
 
       {/* Table */}
       <div className="bg-white rounded-xl shadow-sm border">
         <div className="overflow-x-auto">
-          <table className="w-full min-w-[1200px]">
+          <table className="w-full min-w-[1100px]">
             <thead className="bg-gray-50 text-xs uppercase text-gray-500 border-b">
               <tr>
-                <th className="px-4 py-3 text-left font-semibold w-[120px]">Date</th>
-                <th className="px-4 py-3 text-left font-semibold w-[130px]">Txn ID</th>
-                <th className="px-4 py-3 text-left font-semibold w-[200px]">Description</th>
-                <th className="px-4 py-3 text-center font-semibold w-[90px]">Category</th>
-                <th className="px-4 py-3 text-center font-semibold w-[80px]">Method</th>
-                <th className="px-4 py-3 text-center font-semibold w-[80px]">Type</th>
-                <th className="px-4 py-3 text-right font-semibold w-[120px]">Amount</th>
-                <th className="px-4 py-3 text-right font-semibold w-[80px]">Fee</th>
-                <th className="px-4 py-3 text-right font-semibold w-[120px]">Total</th>
-                <th className="px-4 py-3 text-center font-semibold w-[100px]">Status</th>
-                <th className="px-4 py-3 text-center font-semibold w-[60px]">View</th>
+                <th className="px-3 py-3 text-left font-semibold whitespace-nowrap">Date</th>
+                <th className="px-3 py-3 text-left font-semibold whitespace-nowrap">Txn ID</th>
+                <th className="px-3 py-3 text-left font-semibold whitespace-nowrap">Description</th>
+                <th className="px-3 py-3 text-center font-semibold whitespace-nowrap">Category</th>
+                <th className="px-3 py-3 text-center font-semibold whitespace-nowrap">Method</th>
+                <th className="px-3 py-3 text-center font-semibold whitespace-nowrap">Type</th>
+                <th className="px-3 py-3 text-right font-semibold whitespace-nowrap">Amount</th>
+                <th className="px-3 py-3 text-right font-semibold whitespace-nowrap">Fee</th>
+                <th className="px-3 py-3 text-right font-semibold whitespace-nowrap">Net Amount</th>
+                <th className="px-3 py-3 text-center font-semibold whitespace-nowrap">Status</th>
+                <th className="px-3 py-3 text-center font-semibold whitespace-nowrap">Actions</th>
               </tr>
             </thead>
 
@@ -358,14 +513,34 @@ const UserTransactions = () => {
                       </span>
                     </td>
 
-                    <td className="px-4 py-3 text-center">
-                      <button
-                        onClick={() => setSelectedTxn(txn)}
-                        className="p-1.5 text-blue-600 hover:bg-blue-50 rounded transition-colors"
-                        title="View Details"
-                      >
-                        <Eye size={16} />
-                      </button>
+                    <td className="px-4 py-3">
+                      <div className="flex items-center justify-center gap-2">
+                        <button
+                          onClick={() => setSelectedTxn(txn)}
+                          className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors border border-blue-200"
+                          title="View Details"
+                        >
+                          <Eye size={16} />
+                        </button>
+                        {(txn.status === "Completed" || txn.status === "Success") ? (
+                          <button
+                            onClick={() => downloadReceipt(txn._id)}
+                            disabled={downloadingReceipt === txn._id}
+                            className="p-2 text-green-600 hover:bg-green-50 rounded-lg transition-colors border border-green-200 disabled:opacity-50"
+                            title="Download Receipt"
+                          >
+                            {downloadingReceipt === txn._id ? (
+                              <Loader2 size={16} className="animate-spin" />
+                            ) : (
+                              <FileDown size={16} />
+                            )}
+                          </button>
+                        ) : (
+                          <span className="p-2 text-gray-300 rounded-lg border border-gray-100">
+                            <FileDown size={16} />
+                          </span>
+                        )}
+                      </div>
                     </td>
                   </tr>
                 ))
@@ -407,8 +582,8 @@ const UserTransactions = () => {
                   onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
                   disabled={currentPage === 1}
                   className={`px-3 py-1.5 text-sm rounded-lg border transition-colors ${currentPage === 1
-                      ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
-                      : 'bg-white text-gray-700 hover:bg-gray-50 hover:border-blue-500'
+                    ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
+                    : 'bg-white text-gray-700 hover:bg-gray-50 hover:border-blue-500'
                     }`}
                 >
                   Previous
@@ -424,8 +599,8 @@ const UserTransactions = () => {
                         key={page}
                         onClick={() => setCurrentPage(page)}
                         className={`min-w-[36px] px-3 py-1.5 text-sm rounded-lg border transition-colors ${currentPage === page
-                            ? 'bg-blue-600 text-white border-blue-600'
-                            : 'bg-white text-gray-700 hover:bg-gray-50 hover:border-blue-500'
+                          ? 'bg-blue-600 text-white border-blue-600'
+                          : 'bg-white text-gray-700 hover:bg-gray-50 hover:border-blue-500'
                           }`}
                       >
                         {page}
@@ -439,8 +614,8 @@ const UserTransactions = () => {
                   onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
                   disabled={currentPage === totalPages}
                   className={`px-3 py-1.5 text-sm rounded-lg border transition-colors ${currentPage === totalPages
-                      ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
-                      : 'bg-white text-gray-700 hover:bg-gray-50 hover:border-blue-500'
+                    ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
+                    : 'bg-white text-gray-700 hover:bg-gray-50 hover:border-blue-500'
                     }`}
                 >
                   Next
@@ -621,10 +796,61 @@ const UserTransactions = () => {
             </div>
 
             {/* Modal Footer */}
-            <div className="px-5 py-4 border-t bg-gray-50 rounded-b-xl">
+            <div className="px-5 py-4 border-t bg-gray-50 rounded-b-xl space-y-3">
+              {/* Receipt Buttons - Show for successful transactions */}
+              {(selectedTxn.status === "Completed" || selectedTxn.status === "Success") && (
+                <div className="grid grid-cols-2 gap-3">
+                  {/* Download Receipt Button */}
+                  <button
+                    onClick={() => downloadReceipt(selectedTxn._id)}
+                    disabled={downloadingReceipt === selectedTxn._id}
+                    className="py-2.5 bg-green-600 text-white text-sm font-medium rounded-lg hover:bg-green-700 transition-colors flex items-center justify-center gap-2 disabled:opacity-50"
+                  >
+                    {downloadingReceipt === selectedTxn._id ? (
+                      <>
+                        <Loader2 size={16} className="animate-spin" />
+                        <span>Downloading...</span>
+                      </>
+                    ) : (
+                      <>
+                        <FileDown size={16} />
+                        <span>Download PDF</span>
+                      </>
+                    )}
+                  </button>
+
+                  {/* Email Receipt Button */}
+                  <button
+                    onClick={() => requestReceipt(selectedTxn._id)}
+                    disabled={sendingReceipt}
+                    className="py-2.5 bg-purple-600 text-white text-sm font-medium rounded-lg hover:bg-purple-700 transition-colors flex items-center justify-center gap-2 disabled:opacity-50"
+                  >
+                    {sendingReceipt ? (
+                      <>
+                        <Loader2 size={16} className="animate-spin" />
+                        <span>Sending...</span>
+                      </>
+                    ) : (
+                      <>
+                        <Send size={16} />
+                        <span>Email Receipt</span>
+                      </>
+                    )}
+                  </button>
+                </div>
+              )}
+
+              {/* Receipt sent info */}
+              {selectedTxn.receiptGenerated && (
+                <div className="flex items-center justify-center gap-2 text-green-600 text-xs">
+                  <CheckCircle size={14} />
+                  <span>Receipt sent to {selectedTxn.receiptSentTo}</span>
+                </div>
+              )}
+
               <button
                 onClick={() => setSelectedTxn(null)}
-                className="w-full py-2.5 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700 transition-colors"
+                className="w-full py-2.5 bg-gray-200 text-gray-700 text-sm font-medium rounded-lg hover:bg-gray-300 transition-colors"
               >
                 Close
               </button>

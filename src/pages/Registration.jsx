@@ -2,9 +2,11 @@ import React, { useState } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import { Eye, EyeOff, Check } from "lucide-react";
 import { authAPI } from "../utils/api";
+import { useSettings } from "../hooks/useSettings";
 
 const Register = () => {
   const navigate = useNavigate();
+  const { settings } = useSettings();
 
   const [formData, setFormData] = useState({
     fullName: "",
@@ -90,7 +92,7 @@ const Register = () => {
       <div className="bg-white w-full max-w-md rounded-xl shadow-2xl p-8">
         <div className="text-center mb-8">
           <h2 className="text-3xl font-bold text-indigo-700">
-            Register to SatyamPay
+            Register to {settings.websiteName}
           </h2>
           <p className="text-gray-500 mt-2">
             Create your account to get started

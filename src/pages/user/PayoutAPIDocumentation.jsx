@@ -20,12 +20,14 @@ import {
   ListFilter,
 } from "lucide-react";
 import { Link } from "react-router-dom";
+import { useSettings } from "../../hooks/useSettings";
 
 const PayoutAPIDocumentation = () => {
   const [activeSection, setActiveSection] = useState("getting-started");
   const [activeLanguage, setActiveLanguage] = useState("curl");
   const [copiedCode, setCopiedCode] = useState(null);
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const { settings } = useSettings();
 
   const sections = [
     { id: "getting-started", label: "Getting Started", icon: Rocket },
@@ -183,7 +185,7 @@ const PayoutAPIDocumentation = () => {
               <Banknote className="w-5 h-5 text-white" />
             </div>
             <div>
-              <h1 className="font-bold text-lg">SatyamPay</h1>
+              <h1 className="font-bold text-lg">{settings.websiteName}</h1>
               <p className="text-xs text-slate-400">Payout API v1.0</p>
             </div>
           </div>
@@ -223,7 +225,7 @@ const PayoutAPIDocumentation = () => {
           <section id="getting-started" className="mb-16">
             <h1 className="text-3xl font-bold text-slate-800 mb-2 pb-3 border-b-2 border-emerald-500">Getting Started</h1>
             <p className="text-lg text-slate-600 mb-6 mt-4">
-              Welcome to the SatyamPay Payout API. This API allows you to programmatically send money to bank accounts or UPI IDs. All payout requests require admin approval before the amount is deducted from your account.
+              Welcome to the {settings.websiteName} Payout API. This API allows you to programmatically send money to bank accounts or UPI IDs. All payout requests require admin approval before the amount is deducted from your account.
             </p>
 
             <div className="bg-amber-50 border-l-4 border-amber-500 p-4 mt-4 rounded-r-lg">
@@ -285,7 +287,7 @@ const PayoutAPIDocumentation = () => {
           <section id="authentication" className="mb-16">
             <h1 className="text-3xl font-bold text-slate-800 mb-2 pb-3 border-b-2 border-emerald-500">Authentication</h1>
             <p className="text-slate-600 mt-4 mb-6">
-              SatyamPay Payout API uses HTTP Basic Authentication. You need to request Payout API keys from your dashboard and wait for admin approval.
+              {settings.websiteName} Payout API uses HTTP Basic Authentication. You need to request Payout API keys from your dashboard and wait for admin approval.
             </p>
 
             <h3 className="text-xl font-semibold text-slate-800 mb-3">API Key Structure</h3>

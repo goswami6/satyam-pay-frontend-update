@@ -1,4 +1,3 @@
-import { useState } from 'react';
 import { NavLink } from 'react-router-dom';
 import {
   LayoutDashboard,
@@ -20,10 +19,12 @@ import {
   MessageCircle,
   KeyRound
 } from 'lucide-react';
-import SupportChatModal from './SupportChatModal';
+import { useSettings } from '../../hooks/useSettings';
+import { useSupportChat } from '../../context/SupportChatContext';
 
 const UserSidebar = ({ isOpen, closeSidebar }) => {
-  const [isChatOpen, setIsChatOpen] = useState(false);
+  const { openSupportChat } = useSupportChat();
+  const { settings } = useSettings();
 
   const menuItems = [
     { icon: LayoutDashboard, label: 'Dashboard', path: '/user' },
@@ -65,11 +66,11 @@ const UserSidebar = ({ isOpen, closeSidebar }) => {
         <div className="h-20 flex items-center justify-between px-6 border-b border-slate-50 mb-2">
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 bg-gradient-to-tr from-indigo-600 to-violet-500 rounded-xl flex items-center justify-center shadow-lg shadow-indigo-100">
-              <span className="text-white font-bold text-xl">R</span>
+              <span className="text-white font-bold text-xl">{settings.websiteName?.charAt(0) || 'S'}</span>
             </div>
             <div className="flex flex-col">
               <span className="font-bold text-lg tracking-tight text-slate-800 leading-tight">
-                SatyamPay
+                {settings.websiteName}
               </span>
               <span className="text-indigo-600 text-[10px] uppercase font-bold tracking-[0.15em]">
                 Enterprise
@@ -132,7 +133,7 @@ const UserSidebar = ({ isOpen, closeSidebar }) => {
                 24/7 Priority support enabled for your account.
               </p>
               <button
-                onClick={() => setIsChatOpen(true)}
+                onClick={openSupportChat}
                 className="mt-4 w-full py-2 bg-indigo-500 hover:bg-indigo-400 text-white text-xs font-bold rounded-lg transition-all active:scale-95 flex items-center justify-center gap-2"
               >
                 <MessageCircle className="w-4 h-4" />
@@ -143,9 +144,6 @@ const UserSidebar = ({ isOpen, closeSidebar }) => {
           </div>
         </div>
       </div>
-
-      {/* Support Chat Modal */}
-      <SupportChatModal isOpen={isChatOpen} onClose={() => setIsChatOpen(false)} />
     </>
   );
 };

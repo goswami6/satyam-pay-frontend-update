@@ -65,6 +65,10 @@ export const userAPI = {
     headers: { "Content-Type": "multipart/form-data" }
   }),
 
+  // Password & Email
+  changePassword: (userId, data) => api.put(`/users/change-password/${userId}`, data),
+  changeEmail: (userId, data) => api.put(`/users/change-email/${userId}`, data),
+
   // Balance
   getBalance: (userId) => api.get(`/users/balance/${userId}`),
 
@@ -73,7 +77,23 @@ export const userAPI = {
 
   // Admin - All users
   getAllUsers: () => api.get("/users/all"),
-  toggleUserStatus: (userId) => api.get(`/users/toggle-status/${userId}`),
+  toggleUserStatus: (userId) => api.put(`/users/toggle-status/${userId}`),
+};
+
+// ===============================
+// NOTIFICATION APIs
+// ===============================
+export const notificationAPI = {
+  getNotifications: (userId, limit = 20) => api.get(`/notifications/${userId}?limit=${limit}`),
+  markAsRead: (notificationId) => api.put(`/notifications/read/${notificationId}`),
+  markAllAsRead: (userId) => api.put(`/notifications/read-all/${userId}`),
+  deleteNotification: (notificationId) => api.delete(`/notifications/${notificationId}`),
+  clearAll: (userId) => api.delete(`/notifications/clear/${userId}`),
+  getUnreadCount: (userId) => api.get(`/notifications/count/${userId}`),
+
+  // Admin
+  send: (data) => api.post('/notifications/send', data),
+  broadcast: (data) => api.post('/notifications/broadcast', data),
 };
 
 // ===============================

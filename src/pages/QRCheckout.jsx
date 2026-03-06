@@ -12,12 +12,14 @@ import {
   QrCode,
 } from "lucide-react";
 import axios from "axios";
+import { useSettings } from "../hooks/useSettings";
 
 const API_URL = import.meta.env.VITE_API_URL || "http://localhost:5000";
 
 const QRCheckout = () => {
   const { qrId } = useParams();
   const navigate = useNavigate();
+  const { settings } = useSettings();
 
   const [loading, setLoading] = useState(true);
   const [qrData, setQrData] = useState(null);
@@ -212,7 +214,7 @@ const QRCheckout = () => {
         key,
         amount: order.amount,
         currency: order.currency,
-        name: "SatyamPay",
+        name: settings.websiteName,
         description: qrData.description || "QR Payment",
         order_id: order.id,
         prefill: {
@@ -350,7 +352,7 @@ const QRCheckout = () => {
         <div className="text-center mb-6">
           <div className="flex items-center justify-center gap-2 mb-2">
             <QrCode className="w-8 h-8 text-indigo-600" />
-            <h1 className="text-3xl font-black text-indigo-600 tracking-tight">SatyamPay</h1>
+            <h1 className="text-3xl font-black text-indigo-600 tracking-tight">{settings.websiteName}</h1>
           </div>
           <p className="text-slate-500 text-sm">Secure QR Payment</p>
         </div>
@@ -485,7 +487,7 @@ const QRCheckout = () => {
         {/* Footer */}
         <div className="text-center mt-6">
           <p className="text-xs text-slate-400">
-            Powered by <span className="font-bold text-indigo-600">SatyamPay</span>
+            Powered by <span className="font-bold text-indigo-600">{settings.websiteName}</span>
           </p>
         </div>
       </div>

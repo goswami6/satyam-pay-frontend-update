@@ -11,12 +11,14 @@ import {
   XCircle,
 } from "lucide-react";
 import axios from "axios";
+import { useSettings } from "../hooks/useSettings";
 
 const API_URL = import.meta.env.VITE_API_URL || "http://localhost:5000";
 
 const PaymentCheckout = () => {
   const { linkId } = useParams();
   const navigate = useNavigate();
+  const { settings } = useSettings();
 
   const [loading, setLoading] = useState(true);
   const [paymentData, setPaymentData] = useState(null);
@@ -137,7 +139,7 @@ const PaymentCheckout = () => {
         key,
         amount: order.amount,
         currency: order.currency,
-        name: "SatyamPay",
+        name: settings.websiteName,
         description: paymentData.description || "Payment",
         order_id: order.id,
         prefill: {
@@ -214,7 +216,7 @@ const PaymentCheckout = () => {
       <div className="w-full max-w-md">
         {/* Header */}
         <div className="text-center mb-8">
-          <h1 className="text-3xl font-black text-indigo-600 tracking-tight">SatyamPay</h1>
+          <h1 className="text-3xl font-black text-indigo-600 tracking-tight">{settings.websiteName}</h1>
           <p className="text-slate-500 text-sm mt-1">Secure Payment Gateway</p>
         </div>
 
@@ -287,7 +289,7 @@ const PaymentCheckout = () => {
         {/* Footer */}
         <div className="text-center mt-6">
           <p className="text-xs text-slate-400">
-            Powered by <span className="font-bold text-indigo-600">SatyamPay</span>
+            Powered by <span className="font-bold text-indigo-600">{settings.websiteName}</span>
           </p>
         </div>
       </div>

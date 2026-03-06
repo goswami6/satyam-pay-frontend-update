@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from "react";
+import { useSearchParams } from "react-router-dom";
 import {
   MessageCircle,
   Search,
@@ -18,6 +19,7 @@ import {
 import { supportAPI, getImageUrl } from "../../utils/api";
 
 const Support = () => {
+  const [searchParams, setSearchParams] = useSearchParams();
   const [chats, setChats] = useState([]);
   const [selectedChat, setSelectedChat] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -46,6 +48,19 @@ const Support = () => {
   useEffect(() => {
     fetchChats();
   }, [filterStatus]);
+
+  // Auto-select chat from URL param
+  useEffect(() => {
+    const chatIdFromUrl = searchParams.get('chatId');
+    if (chatIdFromUrl && chats.length > 0 && !selectedChat) {
+      const chatToSelect = chats.find(c => c.chatId === chatIdFromUrl);
+      if (chatToSelect) {
+        selectChat(chatToSelect);
+        // Clear the URL param after selecting
+        setSearchParams({});
+      }
+    }
+  }, [chats, searchParams]);
 
   useEffect(() => {
     scrollToBottom();

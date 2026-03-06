@@ -10,10 +10,12 @@ import {
 } from "lucide-react";
 import { supportAPI, getImageUrl } from "../../utils/api";
 import { useAuth } from "../../context/AuthContext";
+import { useSettings } from "../../hooks/useSettings";
 
 const SupportChatModal = ({ isOpen, onClose }) => {
   const { getUserId } = useAuth();
   const userId = getUserId();
+  const { settings } = useSettings();
 
   const [messages, setMessages] = useState([]);
   const [newMessage, setNewMessage] = useState("");
@@ -185,7 +187,7 @@ const SupportChatModal = ({ isOpen, onClose }) => {
               <Headphones className="w-5 h-5 text-white" />
             </div>
             <div>
-              <h3 className="text-white font-bold text-sm">SatyamPay Support</h3>
+              <h3 className="text-white font-bold text-sm">{settings.websiteName} Support</h3>
               <p className="text-indigo-200 text-xs flex items-center gap-1">
                 <span className="w-2 h-2 bg-emerald-400 rounded-full animate-pulse" />
                 Online - Typically replies in minutes
@@ -242,7 +244,7 @@ const SupportChatModal = ({ isOpen, onClose }) => {
                             </button>
                           )}
                           {!isUser && (
-                            <div className="hidden sm:block w-7 h-7 bg-gradient-to-br from-indigo-100 to-purple-100 rounded-full flex items-center justify-center shadow-sm">
+                            <div className="hidden sm:flex w-7 h-7 bg-gradient-to-br from-indigo-100 to-purple-100 rounded-full items-center justify-center shadow-sm">
                               <MessageCircle className="w-4 h-4 text-indigo-400" />
                             </div>
                           )}

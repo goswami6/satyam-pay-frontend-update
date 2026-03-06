@@ -2,48 +2,41 @@ import React from 'react';
 import { motion } from 'framer-motion';
 import { Link } from 'react-router-dom';
 import { Mail, Phone, MapPin, ExternalLink, ScrollText, Github, Linkedin, Twitter } from 'lucide-react';
+import { useSettings } from '../hooks/useSettings';
 
 const Footer = () => {
   const currentYear = new Date().getFullYear();
+  const { settings } = useSettings();
 
   const footerSections = [
     {
-      title: 'Product',
+      title: 'Products',
       links: [
-        { label: 'Payment Gateway', href: '/', isExternal: false },
-        { label: 'Banking', href: '/', isExternal: false },
-        { label: 'Payroll', href: '/', isExternal: false },
-        { label: 'Engage', href: '/', isExternal: false },
+        { label: 'Payment Solutions', href: '/', isExternal: false },
+        { label: 'Banking Solutions', href: '/', isExternal: false },
+        { label: 'Payroll Management', href: '/', isExternal: false },
         { label: 'Pricing', href: '/pricing', isExternal: false },
       ],
     },
     {
       title: 'Developers',
       links: [
-        { label: 'Documentation', href: '/api-documentation', isExternal: false },
-        { label: 'API Reference', href: '/api-documentation', isExternal: false },
-        { label: 'Code Samples', href: '/api-documentation', isExternal: false },
-        { label: 'SDKs', href: '/api-documentation', isExternal: false },
-        { label: 'Status', href: '/', isExternal: false },
+        { label: 'API Documentation', href: '/api-documentation', isExternal: false },
+        { label: 'Payout API', href: '/payout-api-documentation', isExternal: false },
       ],
     },
     {
       title: 'Company',
       links: [
-        { label: 'About', href: '/', isExternal: false },
-        { label: 'Blog', href: '/', isExternal: false },
-        { label: 'Careers', href: '/', isExternal: false },
-        { label: 'Press', href: '/', isExternal: false },
-        { label: 'Contact', href: '/contact', isExternal: false },
+        { label: 'About Us', href: '/about', isExternal: false },
+        { label: 'Contact Us', href: '/contact', isExternal: false },
       ],
     },
     {
       title: 'Legal',
       links: [
-        { label: 'Privacy', href: '/', isExternal: false },
-        { label: 'Terms', href: '/', isExternal: false },
-        { label: 'Security', href: '/', isExternal: false },
-        { label: 'Compliance', href: '/', isExternal: false },
+        { label: 'Terms of Service', href: '/terms-of-service', isExternal: false },
+        { label: 'Privacy Policy', href: '/privacy-policy', isExternal: false },
       ],
     },
   ];
@@ -61,11 +54,11 @@ const Footer = () => {
         <div className="max-w-7xl mx-auto grid grid-cols-1 md:grid-cols-2 gap-8 items-center">
           <div>
             <h3 className="text-3xl font-bold mb-3">Ready to grow your business?</h3>
-            <p className="text-gray-400">Start accepting payments today with Razorpay</p>
+            <p className="text-gray-400">Start accepting payments today with {settings.websiteName}</p>
           </div>
           <div className="flex gap-4 md:justify-end">
-            <Link to="/register" className="btn-primary">Get Started</Link>
-            <Link to="/contact" className="btn-secondary">Schedule Demo</Link>
+            <Link to="/register" onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })} className="btn-primary">Get Started</Link>
+            <Link to="/contact" onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })} className="btn-secondary">Schedule Demo</Link>
           </div>
         </div>
       </motion.div>
@@ -82,33 +75,33 @@ const Footer = () => {
               viewport={{ once: true }}
               transition={{ duration: 0.6 }}
             >
-              <Link to="/" className="flex items-center gap-2 font-bold text-2xl text-blue-400 mb-4 hover:opacity-80 transition-opacity">
+              <Link to="/" onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })} className="flex items-center gap-2 font-bold text-2xl text-blue-400 mb-4 hover:opacity-80 transition-opacity">
                 <div className="w-8 h-8 bg-gradient-to-r from-blue-600 to-purple-600 rounded-lg flex items-center justify-center text-white font-bold">
-                  RZ
+                  {settings.websiteName?.charAt(0) || 'S'}
                 </div>
-                Razorpay
+                {settings.websiteName}
               </Link>
               <p className="text-gray-400 mb-6 max-w-sm">
-                The fintech platform that empowers businesses to grow. Accept payments, manage finances, and delight customers.
+                {settings.websiteDescription}
               </p>
 
               {/* Contact Info */}
               <div className="space-y-3 text-sm text-gray-400">
                 <div className="flex items-center gap-3">
                   <Mail size={18} className="text-blue-400" />
-                  <a href="mailto:support@razorpay.com" className="hover:text-white transition-colors">
-                    support@razorpay.com
+                  <a href={`mailto:${settings.websiteEmail}`} className="hover:text-white transition-colors">
+                    {settings.websiteEmail}
                   </a>
                 </div>
                 <div className="flex items-center gap-3">
                   <Phone size={18} className="text-blue-400" />
-                  <a href="tel:+919876543210" className="hover:text-white transition-colors">
-                    +91 98765 43210
+                  <a href={`tel:${settings.websitePhone?.replace(/\s+/g, '')}`} className="hover:text-white transition-colors">
+                    {settings.websitePhone}
                   </a>
                 </div>
                 <div className="flex items-center gap-3">
                   <MapPin size={18} className="text-blue-400" />
-                  <span>Mumbai, India</span>
+                  <span>{settings.city}, {settings.state}</span>
                 </div>
               </div>
             </motion.div>
@@ -163,6 +156,7 @@ const Footer = () => {
                       ) : (
                         <Link
                           to={link.href}
+                          onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}
                           className="text-gray-400 hover:text-white transition-colors text-sm"
                         >
                           {link.label}
@@ -178,7 +172,7 @@ const Footer = () => {
           {/* Bottom Section */}
           <div className="border-t border-gray-800 pt-8 flex flex-col md:flex-row justify-between items-center gap-6">
             <p className="text-sm text-gray-500">
-              © {currentYear} Razorpay. All rights reserved.
+              © {currentYear} {settings.websiteName}. All rights reserved.
             </p>
 
             {/* Social Links */}

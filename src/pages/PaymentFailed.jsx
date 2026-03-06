@@ -1,7 +1,9 @@
 import { useSearchParams, Link } from "react-router-dom";
 import { XCircle, RefreshCw, Home, AlertTriangle } from "lucide-react";
+import { useSettings } from "../hooks/useSettings";
 
 const PaymentFailed = () => {
+  const { settings } = useSettings();
   const [searchParams] = useSearchParams();
   const linkId = searchParams.get("linkId");
 
@@ -60,7 +62,7 @@ const PaymentFailed = () => {
         {/* Footer */}
         <div className="text-center mt-6">
           <p className="text-xs text-slate-400">
-            Powered by <span className="font-bold text-red-600">SatyamPay</span>
+            Powered by <span className="font-bold text-red-600">{settings.websiteName}</span>
           </p>
         </div>
       </div>

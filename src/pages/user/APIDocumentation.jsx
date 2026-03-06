@@ -17,12 +17,14 @@ import {
   X,
 } from "lucide-react";
 import { Link } from "react-router-dom";
+import { useSettings } from "../../hooks/useSettings";
 
 const APIDocumentation = () => {
   const [activeSection, setActiveSection] = useState("getting-started");
   const [activeLanguage, setActiveLanguage] = useState("curl");
   const [copiedCode, setCopiedCode] = useState(null);
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const { settings } = useSettings();
 
   const sections = [
     { id: "getting-started", label: "Getting Started", icon: Rocket },
@@ -175,10 +177,10 @@ const APIDocumentation = () => {
         <div className="p-6 border-b border-slate-800">
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-xl flex items-center justify-center">
-              <span className="text-white font-bold text-lg">S</span>
+              <span className="text-white font-bold text-lg">{settings.websiteName?.charAt(0) || 'S'}</span>
             </div>
             <div>
-              <h1 className="font-bold text-lg">SatyamPay</h1>
+              <h1 className="font-bold text-lg">{settings.websiteName}</h1>
               <p className="text-xs text-slate-400">API Documentation v1.0</p>
             </div>
           </div>
@@ -218,12 +220,12 @@ const APIDocumentation = () => {
           <section id="getting-started" className="mb-16">
             <h1 className="text-3xl font-bold text-slate-800 mb-2 pb-3 border-b-2 border-indigo-500">Getting Started</h1>
             <p className="text-lg text-slate-600 mb-6 mt-4">
-              Welcome to the SatyamPay Payment Gateway API. This documentation will help you integrate our payment system into your applications.
+              Welcome to the {settings.websiteName} Payment Gateway API. This documentation will help you integrate our payment system into your applications.
             </p>
 
             <h3 className="text-xl font-semibold text-slate-800 mb-3">Base URL</h3>
             <CodeBlock code={`Test Mode: http://localhost:5000/api/v1
-Live Mode: https://api.satyampay.in/api/v1`} language="URL" id="base-url" />
+Live Mode: ${settings.websiteUrl}/api/v1`} language="URL" id="base-url" />
 
             <h3 className="text-xl font-semibold text-slate-800 mb-3 mt-6">Quick Start</h3>
             <ol className="list-decimal list-inside space-y-2 text-slate-600">
@@ -271,7 +273,7 @@ Live Mode: https://api.satyampay.in/api/v1`} language="URL" id="base-url" />
           <section id="authentication" className="mb-16">
             <h1 className="text-3xl font-bold text-slate-800 mb-2 pb-3 border-b-2 border-indigo-500">Authentication</h1>
             <p className="text-slate-600 mt-4 mb-6">
-              SatyamPay API uses HTTP Basic Authentication. You need to generate API keys from your dashboard and use them in every request.
+              {settings.websiteName} API uses HTTP Basic Authentication. You need to generate API keys from your dashboard and use them in every request.
             </p>
 
             <h3 className="text-xl font-semibold text-slate-800 mb-3">API Key Structure</h3>

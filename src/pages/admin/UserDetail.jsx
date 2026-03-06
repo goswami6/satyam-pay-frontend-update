@@ -15,10 +15,12 @@ import {
   AlertCircle,
   Ban,
   CreditCard,
-  Landmark
+  Landmark,
+  Bell,
+  Send
 } from "lucide-react";
 import { useAuth } from "../../context/AuthContext";
-import { userAPI, getImageUrl } from "../../utils/api";
+import { userAPI, getImageUrl, notificationAPI } from "../../utils/api";
 
 const UserDetail = () => {
   const { id } = useParams();
@@ -30,6 +32,14 @@ const UserDetail = () => {
   const [error, setError] = useState("");
   const [successMessage, setSuccessMessage] = useState("");
   const [actionLoading, setActionLoading] = useState(false);
+
+  // Notification state
+  const [notificationData, setNotificationData] = useState({
+    title: '',
+    message: '',
+    type: 'info'
+  });
+  const [sendingNotification, setSendingNotification] = useState(false);
 
   const fetchUser = async () => {
     try {
@@ -61,6 +71,33 @@ const UserDetail = () => {
       setError(err.response?.data?.message || "Failed to update status");
     } finally {
       setActionLoading(false);
+    }
+  };
+
+  // Send Notification
+  const sendNotification = async () => {
+    if (!notificationData.title || !notificationData.message) {
+      setError('Please fill in notification title and message');
+      return;
+    }
+    try {
+      setSendingNotification(true);
+      setError('');
+
+      await notificationAPI.send({
+        userId: user._id,
+        title: notificationData.title,
+        message: notificationData.message,
+        type: notificationData.type
+      });
+
+      setSuccessMessage('✓ Notification sent successfully!');
+      setNotificationData({ title: '', message: '', type: 'info' });
+      setTimeout(() => setSuccessMessage(''), 3000);
+    } catch (err) {
+      setError(err.response?.data?.message || 'Failed to send notification');
+    } finally {
+      setSendingNotification(false);
     }
   };
 
@@ -380,6 +417,76 @@ const UserDetail = () => {
             )}
           </div>
         )}
+      </div>
+
+      {/* Send Notification Card */}
+      <div className="bg-white rounded-xl shadow-md border p-6">
+        <div className="flex items-center gap-2 mb-4">
+          <Bell className="text-indigo-600" size={20} />
+          <h3 className="text-lg font-semibold text-gray-800">Send Notification</h3>
+        </div>
+        <p className="text-sm text-gray-500 mb-4">Send a notification to this user</p>
+
+        <div className="space-y-4">
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Notification Type</label>
+            <select
+              value={notificationData.type}
+              onChange={(e) => setNotificationData({ ...notificationData, type: e.target.value })}
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+            >
+              <option value="info">Info</option>
+              <option value="success">Success</option>
+              <option value="warning">Warning</option>
+              <option value="error">Error</option>
+              <option value="announcement">Announcement</option>
+              <option value="transaction">Transaction Update</option>
+              <option value="kyc">KYC Update</option>
+              <option value="payout">Payout Update</option>
+              <option value="support">Support Response</option>
+            </select>
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Title</label>
+            <input
+              type="text"
+              value={notificationData.title}
+              onChange={(e) => setNotificationData({ ...notificationData, title: e.target.value })}
+              placeholder="Notification title..."
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+            />
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Message</label>
+            <textarea
+              value={notificationData.message}
+              onChange={(e) => setNotificationData({ ...notificationData, message: e.target.value })}
+              placeholder="Type your notification message..."
+              rows={3}
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 resize-none"
+            />
+          </div>
+
+          <button
+            onClick={sendNotification}
+            disabled={sendingNotification || !notificationData.title.trim() || !notificationData.message.trim()}
+            className="w-full flex items-center justify-center gap-2 px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+          >
+            {sendingNotification ? (
+              <>
+                <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                <span>Sending...</span>
+              </>
+            ) : (
+              <>
+                <Send size={16} />
+                <span>Send Notification</span>
+              </>
+            )}
+          </button>
+        </div>
       </div>
 
     </div>

@@ -176,7 +176,7 @@ const Settings = () => {
                 onChange={handleChange}
                 required
                 className="w-full px-4 py-2.5 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
-                placeholder="Rabbit Pay"
+                placeholder="Satyam Pay"
               />
             </div>
 
@@ -191,7 +191,7 @@ const Settings = () => {
                 onChange={handleChange}
                 required
                 className="w-full px-4 py-2.5 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
-                placeholder="https://rabbitpay.in.net"
+                placeholder="https://satyampay.in"
               />
             </div>
 
@@ -205,7 +205,7 @@ const Settings = () => {
                 value={settings.websiteEmail}
                 onChange={handleChange}
                 className="w-full px-4 py-2.5 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
-                placeholder="info@rabbitpay.in.net"
+                placeholder="info@satyampay.in"
               />
             </div>
 

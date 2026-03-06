@@ -116,9 +116,7 @@ const FeatureSection = () => {
               <p className="text-gray-600 text-sm leading-relaxed">{feature.description}</p>
 
               {/* Hover indicator */}
-              <div className="mt-4 flex items-center text-blue-600 opacity-0 group-hover:opacity-100 transition-opacity text-sm font-medium">
-                Learn more →
-              </div>
+            
             </motion.div>
           ))}
         </motion.div>

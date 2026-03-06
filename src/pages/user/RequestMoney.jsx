@@ -13,9 +13,11 @@ import {
   ArrowRight
 } from "lucide-react";
 import { paymentAPI } from "../../utils/api";
+import { useSettings } from "../../hooks/useSettings";
 
 const RequestMoney = () => {
   const { getUserId } = useAuth();
+  const { settings } = useSettings();
   const [loading, setLoading] = useState(false);
   const [errors, setErrors] = useState({});
   const [successMessage, setSuccessMessage] = useState("");
@@ -308,7 +310,7 @@ const RequestMoney = () => {
 
                 <div className="pt-4 flex items-center gap-2 text-emerald-400">
                   <CheckCircle2 className="w-4 h-4" />
-                  <span className="text-[10px] font-bold uppercase tracking-widest">SatyamPay Secure Payment</span>
+                  <span className="text-[10px] font-bold uppercase tracking-widest">{settings.websiteName} Secure Payment</span>
                 </div>
               </div>
             </div>

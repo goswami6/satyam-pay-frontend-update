@@ -20,7 +20,9 @@ import {
   KeyRound,
   Send,
   MessageSquare,
-  ShieldX
+  ShieldX,
+  Receipt,
+  ListOrdered
 } from 'lucide-react';
 import AdminSection from './AdminSection';
 
@@ -47,6 +49,8 @@ const AdminSidebar = () => {
       { icon: LayoutDashboard, label: 'Overview', path: '/admin' }
     ],
     transactions: [
+      { icon: ListOrdered, label: 'All Transactions', path: '/admin/transactions' },
+      { icon: Receipt, label: 'Payment Receipts', path: '/admin/receipts' },
       { icon: ArrowLeftRight, label: 'Manage Payout', path: '/admin/payout' },
       { icon: Send, label: 'Payout Requests', path: '/admin/payout-requests' },
       { icon: Wallet, label: 'Withdraw Management', path: '/admin/withdraw-management' },

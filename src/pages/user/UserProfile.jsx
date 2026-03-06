@@ -14,10 +14,15 @@ import {
   AlertCircle,
   CheckCircle,
   Loader,
-  RefreshCw
+  RefreshCw,
+  Lock,
+  Eye,
+  EyeOff,
+  KeyRound
 } from "lucide-react";
 import { useAuth } from "../../context/AuthContext";
 import { userAPI } from "../../utils/api";
+import toast from "react-hot-toast";
 
 const API_BASE_URL = import.meta.env.VITE_API_URL || "http://localhost:5000";
 
@@ -43,6 +48,25 @@ const UserProfile = () => {
   const [imageUploading, setImageUploading] = useState(false);
   const [error, setError] = useState("");
   const [successMessage, setSuccessMessage] = useState("");
+
+  // Email change state
+  const [emailData, setEmailData] = useState({
+    newEmail: '',
+    password: ''
+  });
+  const [emailLoading, setEmailLoading] = useState(false);
+  const [showEmailPassword, setShowEmailPassword] = useState(false);
+
+  // Password change state
+  const [passwordData, setPasswordData] = useState({
+    currentPassword: '',
+    newPassword: '',
+    confirmPassword: ''
+  });
+  const [passwordLoading, setPasswordLoading] = useState(false);
+  const [showCurrentPassword, setShowCurrentPassword] = useState(false);
+  const [showNewPassword, setShowNewPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
 
   const fetchProfile = useCallback(async () => {
     try {
@@ -181,6 +205,62 @@ const UserProfile = () => {
   const formatBalance = (balance) => {
     const num = Number(balance) || 0;
     return num.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  };
+
+  // Handle email change
+  const handleEmailChange = async (e) => {
+    e.preventDefault();
+
+    if (!emailData.newEmail || !emailData.password) {
+      toast.error('Please fill all fields');
+      return;
+    }
+
+    try {
+      setEmailLoading(true);
+      const res = await userAPI.changeEmail(userId, emailData);
+      toast.success(res.data.message || 'Email updated successfully');
+      setFormData(prev => ({ ...prev, email: res.data.email }));
+      setEmailData({ newEmail: '', password: '' });
+    } catch (error) {
+      toast.error(error.response?.data?.message || 'Failed to update email');
+    } finally {
+      setEmailLoading(false);
+    }
+  };
+
+  // Handle password change
+  const handlePasswordChange = async (e) => {
+    e.preventDefault();
+
+    if (!passwordData.currentPassword || !passwordData.newPassword || !passwordData.confirmPassword) {
+      toast.error('Please fill all fields');
+      return;
+    }
+
+    if (passwordData.newPassword !== passwordData.confirmPassword) {
+      toast.error('New passwords do not match');
+      return;
+    }
+
+    if (passwordData.newPassword.length < 6) {
+      toast.error('Password must be at least 6 characters');
+      return;
+    }
+
+    try {
+      setPasswordLoading(true);
+      const res = await userAPI.changePassword(userId, {
+        currentPassword: passwordData.currentPassword,
+        newPassword: passwordData.newPassword
+      });
+      toast.success(res.data.message || 'Password changed successfully');
+      setPasswordData({ currentPassword: '', newPassword: '', confirmPassword: '' });
+    } catch (error) {
+      toast.error(error.response?.data?.message || 'Failed to change password');
+    } finally {
+      setPasswordLoading(false);
+    }
   };
 
   return (
@@ -441,6 +521,236 @@ const UserProfile = () => {
                   </button>
                 </div>
               </form>
+            </div>
+
+            {/* Account Security Section */}
+            <div className="bg-white p-8 rounded-[2.5rem] border border-slate-100 shadow-sm mt-8">
+              <div className="flex items-center gap-4 mb-8">
+                <div className="w-12 h-12 bg-gradient-to-br from-rose-500 to-pink-600 rounded-2xl flex items-center justify-center shadow-lg shadow-rose-200">
+                  <ShieldCheck className="w-6 h-6 text-white" />
+                </div>
+                <div>
+                  <h2 className="text-lg font-black text-slate-900">Account Security</h2>
+                  <p className="text-xs text-slate-500">Manage your email and password</p>
+                </div>
+              </div>
+
+              {/* Change Email Section */}
+              <div className="mb-8 p-6 bg-slate-50 rounded-2xl">
+                <div className="flex items-center gap-3 mb-4">
+                  <div className="w-10 h-10 bg-blue-100 rounded-xl flex items-center justify-center">
+                    <Mail className="w-5 h-5 text-blue-600" />
+                  </div>
+                  <div>
+                    <h3 className="text-sm font-bold text-slate-900">Change Email</h3>
+                    <p className="text-xs text-slate-500">Update your email address</p>
+                  </div>
+                </div>
+
+                <form onSubmit={handleEmailChange} className="space-y-4">
+                  <div>
+                    <label className="text-xs font-bold text-slate-700 mb-1 block">Current Email</label>
+                    <input
+                      type="email"
+                      value={formData.email}
+                      disabled
+                      className="w-full px-4 py-3 bg-white border border-slate-200 rounded-xl text-sm text-slate-500"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="text-xs font-bold text-slate-700 mb-1 block">New Email</label>
+                    <div className="relative">
+                      <Mail className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+                      <input
+                        type="email"
+                        value={emailData.newEmail}
+                        onChange={(e) => setEmailData(prev => ({ ...prev, newEmail: e.target.value }))}
+                        placeholder="Enter new email"
+                        className="w-full pl-11 pr-4 py-3 bg-white border border-slate-200 rounded-xl focus:border-blue-500 outline-none text-sm"
+                      />
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="text-xs font-bold text-slate-700 mb-1 block">Confirm with Password</label>
+                    <div className="relative">
+                      <Lock className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+                      <input
+                        type={showEmailPassword ? 'text' : 'password'}
+                        value={emailData.password}
+                        onChange={(e) => setEmailData(prev => ({ ...prev, password: e.target.value }))}
+                        placeholder="Enter your password"
+                        className="w-full pl-11 pr-11 py-3 bg-white border border-slate-200 rounded-xl focus:border-blue-500 outline-none text-sm"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setShowEmailPassword(!showEmailPassword)}
+                        className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
+                      >
+                        {showEmailPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+                      </button>
+                    </div>
+                  </div>
+
+                  <button
+                    type="submit"
+                    disabled={emailLoading}
+                    className="w-full px-6 py-3 bg-blue-600 text-white rounded-xl hover:bg-blue-700 transition-colors flex items-center justify-center gap-2 font-bold text-sm disabled:opacity-50"
+                  >
+                    {emailLoading ? (
+                      <>
+                        <Loader className="w-4 h-4 animate-spin" />
+                        Updating...
+                      </>
+                    ) : (
+                      <>
+                        <Save className="w-4 h-4" />
+                        Update Email
+                      </>
+                    )}
+                  </button>
+                </form>
+              </div>
+
+              {/* Change Password Section */}
+              <div className="p-6 bg-slate-50 rounded-2xl">
+                <div className="flex items-center gap-3 mb-4">
+                  <div className="w-10 h-10 bg-purple-100 rounded-xl flex items-center justify-center">
+                    <KeyRound className="w-5 h-5 text-purple-600" />
+                  </div>
+                  <div>
+                    <h3 className="text-sm font-bold text-slate-900">Change Password</h3>
+                    <p className="text-xs text-slate-500">Update your password for better security</p>
+                  </div>
+                </div>
+
+                <form onSubmit={handlePasswordChange} className="space-y-4">
+                  <div>
+                    <label className="text-xs font-bold text-slate-700 mb-1 block">Current Password</label>
+                    <div className="relative">
+                      <Lock className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+                      <input
+                        type={showCurrentPassword ? 'text' : 'password'}
+                        value={passwordData.currentPassword}
+                        onChange={(e) => setPasswordData(prev => ({ ...prev, currentPassword: e.target.value }))}
+                        placeholder="Enter current password"
+                        className="w-full pl-11 pr-11 py-3 bg-white border border-slate-200 rounded-xl focus:border-purple-500 outline-none text-sm"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setShowCurrentPassword(!showCurrentPassword)}
+                        className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
+                      >
+                        {showCurrentPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+                      </button>
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                      <label className="text-xs font-bold text-slate-700 mb-1 block">New Password</label>
+                      <div className="relative">
+                        <Lock className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+                        <input
+                          type={showNewPassword ? 'text' : 'password'}
+                          value={passwordData.newPassword}
+                          onChange={(e) => setPasswordData(prev => ({ ...prev, newPassword: e.target.value }))}
+                          placeholder="New password"
+                          className="w-full pl-11 pr-11 py-3 bg-white border border-slate-200 rounded-xl focus:border-purple-500 outline-none text-sm"
+                        />
+                        <button
+                          type="button"
+                          onClick={() => setShowNewPassword(!showNewPassword)}
+                          className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
+                        >
+                          {showNewPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+                        </button>
+                      </div>
+                    </div>
+
+                    <div>
+                      <label className="text-xs font-bold text-slate-700 mb-1 block">Confirm Password</label>
+                      <div className="relative">
+                        <Lock className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+                        <input
+                          type={showConfirmPassword ? 'text' : 'password'}
+                          value={passwordData.confirmPassword}
+                          onChange={(e) => setPasswordData(prev => ({ ...prev, confirmPassword: e.target.value }))}
+                          placeholder="Confirm password"
+                          className="w-full pl-11 pr-11 py-3 bg-white border border-slate-200 rounded-xl focus:border-purple-500 outline-none text-sm"
+                        />
+                        <button
+                          type="button"
+                          onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                          className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
+                        >
+                          {showConfirmPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+
+                  {passwordData.newPassword && passwordData.confirmPassword && (
+                    <div className={`flex items-center gap-2 text-xs font-medium ${passwordData.newPassword === passwordData.confirmPassword
+                        ? 'text-emerald-600'
+                        : 'text-red-600'
+                      }`}>
+                      {passwordData.newPassword === passwordData.confirmPassword ? (
+                        <>
+                          <CheckCircle size={14} />
+                          Passwords match
+                        </>
+                      ) : (
+                        <>
+                          <AlertCircle size={14} />
+                          Passwords do not match
+                        </>
+                      )}
+                    </div>
+                  )}
+
+                  <button
+                    type="submit"
+                    disabled={passwordLoading}
+                    className="w-full px-6 py-3 bg-purple-600 text-white rounded-xl hover:bg-purple-700 transition-colors flex items-center justify-center gap-2 font-bold text-sm disabled:opacity-50"
+                  >
+                    {passwordLoading ? (
+                      <>
+                        <Loader className="w-4 h-4 animate-spin" />
+                        Changing...
+                      </>
+                    ) : (
+                      <>
+                        <KeyRound className="w-4 h-4" />
+                        Change Password
+                      </>
+                    )}
+                  </button>
+                </form>
+              </div>
+
+              {/* Security Tips */}
+              <div className="mt-6 p-4 bg-gradient-to-r from-blue-50 to-purple-50 rounded-xl border border-blue-100">
+                <h4 className="font-bold text-slate-900 text-xs mb-2 flex items-center gap-2">
+                  <ShieldCheck className="w-4 h-4 text-blue-600" />
+                  Security Tips
+                </h4>
+                <ul className="space-y-1 text-[11px] text-slate-600">
+                  <li className="flex items-start gap-2">
+                    <CheckCircle size={12} className="text-emerald-500 mt-0.5 flex-shrink-0" />
+                    Use a strong password with at least 8 characters
+                  </li>
+                  <li className="flex items-start gap-2">
+                    <CheckCircle size={12} className="text-emerald-500 mt-0.5 flex-shrink-0" />
+                    Never share your password with anyone
+                  </li>
+                  <li className="flex items-start gap-2">
+                    <CheckCircle size={12} className="text-emerald-500 mt-0.5 flex-shrink-0" />
+                    Change your password regularly
+                  </li>
+                </ul>
+              </div>
             </div>
           </div>
         </div>

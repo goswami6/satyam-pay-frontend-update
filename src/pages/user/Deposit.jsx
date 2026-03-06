@@ -11,9 +11,11 @@ import {
   AlertCircle,
 } from "lucide-react";
 import { userAPI, paymentAPI, gatewayAPI } from "../../utils/api";
+import { useSettings } from "../../hooks/useSettings";
 
 const Deposit = () => {
   const { user, getUserId, getUserBalance } = useAuth();
+  const { settings } = useSettings();
   const [amount, setAmount] = useState(1000);
   const [balance, setBalance] = useState(0);
   const [loading, setLoading] = useState(false);
@@ -131,7 +133,7 @@ const Deposit = () => {
         key: data.key,
         amount: data.order.amount,
         currency: "INR",
-        name: "SatyamPay",
+        name: settings.websiteName,
         description: "Secure Wallet Deposit",
         order_id: data.order.id,
         handler: async function (response) {
@@ -265,14 +267,7 @@ const Deposit = () => {
               {!loading && <ArrowRight className="w-4 h-4 md:w-5 md:h-5 relative z-10 group-hover:translate-x-2 transition-transform" />}
             </button>
 
-            <div className="mt-6 md:mt-8 flex items-center justify-center gap-4 md:gap-6 flex-wrap">
-              <img src="https://upload.wikimedia.org/wikipedia/commons/8/89/Razorpay_logo.svg" alt="Razorpay" className="h-3 md:h-4 opacity-50 grayscale hover:grayscale-0 transition-all" />
-              <div className="h-3 md:h-4 w-px bg-slate-200 hidden sm:block"></div>
-              <div className="flex items-center gap-1.5 text-[9px] md:text-[10px] font-bold text-slate-400 uppercase tracking-widest">
-                <CheckCircle2 className="w-3 h-3 md:w-3.5 md:h-3.5 text-emerald-500" />
-                PCI-DSS Compliant
-              </div>
-            </div>
+            
           </div>
         </div>
 

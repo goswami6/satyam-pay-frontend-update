@@ -2,10 +2,12 @@ import { useEffect, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import { CheckCircle, Loader, XCircle, Home } from "lucide-react";
 import axios from "axios";
+import { useSettings } from "../hooks/useSettings";
 
 const API_URL = import.meta.env.VITE_API_URL || "http://localhost:5000";
 
 const PaymentSuccess = () => {
+  const { settings } = useSettings();
   const [searchParams] = useSearchParams();
   const alreadyPaid = searchParams.get("already") === "true";
   const flow = searchParams.get("flow");
@@ -115,7 +117,7 @@ const PaymentSuccess = () => {
         {/* Footer */}
         <div className="text-center mt-6">
           <p className="text-xs text-slate-400">
-            Powered by <span className="font-bold text-emerald-600">SatyamPay</span>
+            Powered by <span className="font-bold text-emerald-600">{settings.websiteName}</span>
           </p>
         </div>
       </div>

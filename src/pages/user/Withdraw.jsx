@@ -381,7 +381,7 @@ const Withdraw = () => {
         {/* Summary Column */}
         <div className="space-y-6">
           <div className="bg-slate-900 p-8 rounded-[3rem] shadow-2xl relative overflow-hidden text-white group border border-slate-800">
-            <div className="absolute top-0 right-0 w-40 h-40 bg-indigo-500/20 rounded-full -mr-20 -mt-20 blur-3xl"></div>
+            <div className="absolute top-0 right-0 w-40 h-40 bg-indigo-500/20 rounded-full -mr-20 -mt-20 blur-3xl hidden lg:block"></div>
 
             <Wallet className="w-12 h-12 mb-8 text-indigo-400" />
             <p className="text-slate-500 text-[10px] font-black uppercase tracking-[0.2em]">Current Wallet</p>

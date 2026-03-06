@@ -2,7 +2,9 @@ import { useState, useEffect } from 'react';
 import { Outlet } from 'react-router-dom';
 import UserTopbar from './UserTopbar';
 import UserSidebar from './UserSidebar';
+import SupportChatModal from './SupportChatModal';
 import { useAuth } from '../../context/AuthContext';
+import { useSupportChat } from '../../context/SupportChatContext';
 import KYCVerification from '../../pages/user/KYCVerification';
 import KYCPending from '../../pages/user/KYCPending';
 import { kycAPI } from '../../utils/api';
@@ -10,6 +12,7 @@ import { kycAPI } from '../../utils/api';
 const UserLayout = () => {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const { user } = useAuth();
+  const { isChatOpen, closeSupportChat } = useSupportChat();
   const [kycStatus, setKycStatus] = useState(null);
   const [loading, setLoading] = useState(true);
 
@@ -77,6 +80,9 @@ const UserLayout = () => {
           <Outlet />
         </div>
       </main>
+
+      {/* Support Chat Modal - Controlled globally */}
+      <SupportChatModal isOpen={isChatOpen} onClose={closeSupportChat} />
     </div>
   );
 };
